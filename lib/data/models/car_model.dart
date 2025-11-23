@@ -86,4 +86,37 @@ class CarModel extends HiveObject {
       pricePerDay: pricePerDay,
     );
   }
+
+  // Firestore conversion methods
+  Map<String, dynamic> toFirestore() {
+    return {
+      'id': id,
+      'vehicleNumber': vehicleNumber,
+      'make': make,
+      'model': model,
+      'year': year,
+      'color': color,
+      'transmission': transmission,
+      'ownerName': ownerName,
+      'ownerPhoneNumber': ownerPhoneNumber,
+      'imagePath': imagePath,
+      'pricePerDay': pricePerDay,
+    };
+  }
+
+  factory CarModel.fromFirestore(Map<String, dynamic> map, String id) {
+    return CarModel(
+      id: id,
+      vehicleNumber: map['vehicleNumber'] as String,
+      make: map['make'] as String,
+      model: map['model'] as String,
+      year: map['year'] as int,
+      color: map['color'] as String,
+      transmission: map['transmission'] as String,
+      ownerName: map['ownerName'] as String,
+      ownerPhoneNumber: map['ownerPhoneNumber'] as String,
+      imagePath: map['imagePath'] as String?,
+      pricePerDay: (map['pricePerDay'] as num).toDouble(),
+    );
+  }
 }

@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/entities/rental.dart';
 
 part 'rental_model.g.dart';
@@ -65,8 +66,11 @@ class RentalModel extends HiveObject {
   @HiveField(19)
   final double? cancellationAmount;
 
+  final String? carId; // Link to Car entity (not in Hive, only for Firestore)
+
   RentalModel({
     required this.id,
+    this.carId,
     required this.vehicleNumber,
     required this.model,
     required this.year,
@@ -91,6 +95,7 @@ class RentalModel extends HiveObject {
   factory RentalModel.fromEntity(Rental rental) {
     return RentalModel(
       id: rental.id,
+      carId: rental.carId,
       vehicleNumber: rental.vehicleNumber,
       model: rental.model,
       year: rental.year,
@@ -116,6 +121,7 @@ class RentalModel extends HiveObject {
   Rental toEntity() {
     return Rental(
       id: id,
+      carId: carId,
       vehicleNumber: vehicleNumber,
       model: model,
       year: year,
@@ -180,5 +186,62 @@ class RentalModel extends HiveObject {
       'actualReturnDate': actualReturnDate?.toIso8601String(),
       'isReturnApproved': isReturnApproved,
     };
+  }
+
+  // Firestore conversion methods
+  Map<String, dynamic> toFirestore() {
+    return {
+      'id': id,
+      'vehicleNumber': vehicleNumber,
+      'model': model,
+      'year': year,
+      'rentToPerson': rentToPerson,
+      'contactNumber': contactNumber,
+      'email': email,
+      'address': address,
+      'notes': notes,
+      'rentFromDate': rentFromDate,
+      'rentToDate': rentToDate,
+      'totalAmount': totalAmount,
+      'imagePath': imagePath,
+      'documentPath': documentPath,
+      'createdAt': createdAt,
+      'actualReturnDate': actualReturnDate,
+      'isReturnApproved': isReturnApproved,
+      'isCommissionBased': isCommissionBased,
+      'isCancelled': isCancelled,
+      'cancellationAmount': cancellationAmount,
+      'carId': carId,
+    };
+  }
+
+  factory RentalModel.fromFirestore(Map<String, dynamic> map, String id) {
+    return RentalModel(
+      id: id,
+      vehicleNumber: map['vehicleNumber'] as String,
+      model: map['model'] as String,
+      year: map['year'] as int,
+      rentToPerson: map['rentToPerson'] as String,
+      contactNumber: map['contactNumber'] as String?,
+      email: map['email'] as String?,
+      address: map['address'] as String?,
+      notes: map['notes'] as String?,
+      rentFromDate: (map['rentFromDate'] as Timestamp).toDate(),
+      rentToDate: (map['rentToDate'] as Timestamp).toDate(),
+      totalAmount: (map['totalAmount'] as num).toDouble(),
+      imagePath: map['imagePath'] as String?,
+      documentPath: map['documentPath'] as String?,
+      createdAt: (map['createdAt'] as Timestamp).toDate(),
+      actualReturnDate: map['actualReturnDate'] != null
+          ? (map['actualReturnDate'] as Timestamp).toDate()
+          : null,
+      isReturnApproved: map['isReturnApproved'] as bool? ?? false,
+      isCommissionBased: map['isCommissionBased'] as bool? ?? false,
+      isCancelled: map['isCancelled'] as bool? ?? false,
+      cancellationAmount: map['cancellationAmount'] != null
+          ? (map['cancellationAmount'] as num).toDouble()
+          : null,
+      carId: map['carId'] as String?,
+    );
   }
 }

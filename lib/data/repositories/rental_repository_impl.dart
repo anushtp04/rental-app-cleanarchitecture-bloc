@@ -1,47 +1,47 @@
 import '../../domain/entities/rental.dart';
 import '../../domain/repositories/rental_repository.dart';
-import '../data_source/rental_local_data_source.dart';
+import '../data_source/rental_firestore_data_source.dart';
 import '../models/rental_model.dart';
 
 class RentalRepositoryImpl implements RentalRepository {
-  final RentalLocalDataSource localDataSource;
+  final RentalFirestoreDataSource firestoreDataSource;
 
-  RentalRepositoryImpl(this.localDataSource);
+  RentalRepositoryImpl(this.firestoreDataSource);
 
   @override
   Future<List<Rental>> getAllRentals() async {
-    final rentals = await localDataSource.getAllRentals();
+    final rentals = await firestoreDataSource.getAllRentals();
     return rentals.map((rental) => rental.toEntity()).toList();
   }
 
   @override
   Future<Rental> getRentalById(String id) async {
-    final rental = await localDataSource.getRentalById(id);
+    final rental = await firestoreDataSource.getRentalById(id);
     return rental.toEntity();
   }
 
   @override
   Future<Rental> createRental(Rental rental) async {
     final rentalModel = RentalModel.fromEntity(rental);
-    await localDataSource.cacheRental(rentalModel);
+    await firestoreDataSource.cacheRental(rentalModel);
     return rentalModel.toEntity();
   }
 
   @override
   Future<Rental> updateRental(Rental rental) async {
     final rentalModel = RentalModel.fromEntity(rental);
-    await localDataSource.updateCachedRental(rentalModel);
+    await firestoreDataSource.updateCachedRental(rentalModel);
     return rentalModel.toEntity();
   }
 
   @override
   Future<void> deleteRental(String id) async {
-    await localDataSource.deleteRental(id);
+    await firestoreDataSource.deleteRental(id);
   }
 
   @override
   Future<void> deleteAllRentals() async {
-    await localDataSource.deleteAllRentals();
+    await firestoreDataSource.deleteAllRentals();
   }
 
   @override
@@ -51,7 +51,7 @@ class RentalRepositoryImpl implements RentalRepository {
     String? vehicleNumber,
     String? ownerName,
   }) async {
-    final rentals = await localDataSource.filterRentals(
+    final rentals = await firestoreDataSource.filterRentals(
       fromDate: fromDate,
       toDate: toDate,
       vehicleNumber: vehicleNumber,
