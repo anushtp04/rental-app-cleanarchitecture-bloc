@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "443283451476",
+    "project_id": "motorent-459c7",
+    "storage_bucket": "motorent-459c7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:443283451476:android:0cc733ac830cb2e95e87c1",
+        "android_client_info": {
+          "package_name": "com.premified.motorent"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDsVsu30TngNysHG3NWrCPqiuyU_hnuu34"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
