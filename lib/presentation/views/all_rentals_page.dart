@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+
+
 import 'package:table_calendar/table_calendar.dart';
 import '../../domain/entities/rental.dart';
 import '../bloc/rental/rental_bloc.dart';
@@ -39,6 +39,11 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
       // Category filter
       if (_selectedFilter != 'All') {
         if (_selectedFilter == 'Active' && rental.status != RentalStatus.ongoing) return false;
+        if (_selectedFilter == 'Overdue') {
+          final isOverdue = rental.status == RentalStatus.ongoing && 
+              DateTime.now().isAfter(rental.rentToDate);
+          if (!isOverdue) return false;
+        }
         if (_selectedFilter == 'Completed' && rental.status != RentalStatus.completed) return false;
         if (_selectedFilter == 'Upcoming' && rental.status != RentalStatus.upcoming) return false;
       }
@@ -209,30 +214,6 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
     );
   }
 
-  Future<void> _showDeleteDialog(BuildContext context, Rental rental) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Rental'),
-        content: const Text('Are you sure you want to delete this rental? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true && mounted) {
-      context.read<RentalBloc>().add(DeleteRentalEvent(rental.id));
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -280,6 +261,8 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
                   child: Row(
                     children: [
                       _buildFilterChip('All'),
+                      const SizedBox(width: 8),
+                      _buildFilterChip('Overdue'),
                       const SizedBox(width: 8),
                       _buildFilterChip('Active'),
                       const SizedBox(width: 8),
@@ -347,9 +330,19 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
                   }
 
                   // Categorize rentals
-                  final activeRentals = filteredRentals
-                      .where((r) => r.status == RentalStatus.ongoing && !r.isCancelled)
+                  // Categorize rentals
+                  final overdueRentals = filteredRentals
+                      .where((r) => r.status == RentalStatus.ongoing && 
+                          !r.isCancelled && 
+                          DateTime.now().isAfter(r.rentToDate))
                       .toList();
+
+                  final activeRentals = filteredRentals
+                      .where((r) => r.status == RentalStatus.ongoing && 
+                          !r.isCancelled && 
+                          !DateTime.now().isAfter(r.rentToDate))
+                      .toList();
+
                   final upcomingRentals = filteredRentals
                       .where((r) => r.status == RentalStatus.upcoming && !r.isCancelled)
                       .toList();
@@ -363,6 +356,14 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
                   return ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
+                      // Overdue Rentals
+                      if (overdueRentals.isNotEmpty) ...[
+                        _buildSectionHeader('Overdue', overdueRentals.length, Colors.red),
+                        const SizedBox(height: 12),
+                        ...overdueRentals.map((rental) => _buildRentalCard(context, rental)),
+                        const SizedBox(height: 24),
+                      ],
+
                       // Active Rentals
                       if (activeRentals.isNotEmpty) ...[
                         _buildSectionHeader('Active', activeRentals.length, Colors.green),
@@ -467,7 +468,10 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
 
     // If can't cancel or delete, show regular card
     if (!canCancel && !canDelete) {
-      return _buildCardContent(context, rental);
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: RentalTile(rental: rental),
+      );
     }
 
     // Use Dismissible for swipe actions
@@ -477,7 +481,11 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
           ? DismissDirection.horizontal 
           : (canCancel ? DismissDirection.endToStart : DismissDirection.startToEnd),
       background: Container(
-        color: canDelete ? Colors.red : Colors.orange,
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(16),
+        ),
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: 20),
         child: Icon(
@@ -488,7 +496,11 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
       ),
       secondaryBackground: canCancel
           ? Container(
-              color: Colors.orange,
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: Colors.orange,
+                borderRadius: BorderRadius.circular(16),
+              ),
               alignment: Alignment.centerRight,
               padding: const EdgeInsets.only(right: 20),
               child: const Icon(Icons.cancel, color: Colors.white, size: 32),
@@ -505,7 +517,10 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
         }
         return false;
       },
-      child: _buildCardContent(context, rental),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: RentalTile(rental: rental),
+      ),
     );
   }
 
@@ -534,141 +549,5 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
       return true;
     }
     return false;
-  }
-
-  Widget _buildCardContent(BuildContext context, Rental rental) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Theme.of(context).primaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(Icons.directions_car, color: Theme.of(context).primaryColor),
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                '${rental.vehicleNumber} - ${rental.model}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            if (rental.isCancelled)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  'CANCELLED',
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${DateFormat('MMM dd').format(rental.rentFromDate)} - ${DateFormat('MMM dd').format(rental.rentToDate)}',
-            ),
-            if (rental.isCancelled && rental.cancellationAmount != null)
-              Text(
-                'Cancellation: ₹${rental.cancellationAmount!.toStringAsFixed(0)}',
-                style: const TextStyle(color: Colors.red, fontSize: 12),
-              ),
-          ],
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              '₹${rental.isCancelled && rental.cancellationAmount != null ? rental.cancellationAmount!.toStringAsFixed(0) : rental.totalAmount.toStringAsFixed(0)}',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: rental.isCancelled ? Colors.red : Colors.green,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (rental.isCommissionBased && !rental.isCancelled)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    margin: const EdgeInsets.only(right: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      'C',
-                      style: TextStyle(
-                        color: Colors.blue,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                _buildStatusBadge(rental),
-              ],
-            ),
-          ],
-        ),
-        onTap: () {
-          context.pushNamed('rental-details', extra: rental);
-        },
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(Rental rental) {
-    Color color;
-    String text;
-
-    if (rental.isCancelled) {
-      color = Colors.red;
-      text = 'Cancelled';
-    } else {
-      switch (rental.status) {
-        case RentalStatus.ongoing:
-          color = Colors.green;
-          text = 'Active';
-          break;
-        case RentalStatus.upcoming:
-          color = Colors.orange;
-          text = 'Upcoming';
-          break;
-        case RentalStatus.completed:
-          color = Colors.grey;
-          text = 'Completed';
-          break;
-      }
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
   }
 }

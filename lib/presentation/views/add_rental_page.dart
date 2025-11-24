@@ -6,7 +6,7 @@ import '../bloc/rental/rental_bloc.dart';
 import '../bloc/car/car_bloc.dart';
 import '../../domain/entities/rental.dart';
 import '../../domain/entities/car.dart';
-import '../../core/utils/image_helper.dart';
+
 import '../../core/utils/document_helper.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
@@ -116,25 +116,6 @@ class _AddRentalPageState extends State<AddRentalPage> {
     }
   }
 
-  void _onTotalDaysChanged(String value) {
-    if (value.isEmpty) return;
-    final days = int.tryParse(value);
-    if (days != null && days > 0 && _rentFromDate != null) {
-      setState(() {
-        _rentToDate = _rentFromDate!.add(Duration(days: days));
-        
-        // Recalc price
-        if (_selectedCarId != null) {
-          final state = context.read<CarBloc>().state;
-          if (state is CarLoaded && state.cars.any((c) => c.id == _selectedCarId)) {
-            final car = state.cars.firstWhere((c) => c.id == _selectedCarId);
-            final total = car.pricePerDay * days;
-            _totalAmountController.text = total.toStringAsFixed(2);
-          }
-        }
-      });
-    }
-  }
 
   @override
   void dispose() {
@@ -351,40 +332,6 @@ class _AddRentalPageState extends State<AddRentalPage> {
     );
   }
 
-  Future<void> _pickImage() async {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Image Source'),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final imagePath = await ImageHelper.pickImageFromCamera();
-              if (imagePath != null && mounted) {
-                setState(() {
-                  _imagePath = imagePath;
-                });
-              }
-            },
-            child: const Text('Camera'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final imagePath = await ImageHelper.pickImage();
-              if (imagePath != null && mounted) {
-                setState(() {
-                  _imagePath = imagePath;
-                });
-              }
-            },
-            child: const Text('Gallery'),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _pickDocument() async {
     final documentPath = await DocumentHelper.pickDocument();
@@ -472,221 +419,128 @@ class _AddRentalPageState extends State<AddRentalPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: Text(widget.rental != null ? 'Edit Rental' : 'Add Rental'),
+        title: Text(
+          widget.rental != null ? 'Edit Rental' : 'New Rental',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         elevation: 0,
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.black,
+        centerTitle: true,
       ),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              _buildProgressIndicator(),
+              const SizedBox(height: 24),
+              
+              _buildSectionHeader('Vehicle Information', Icons.directions_car_outlined),
+              const SizedBox(height: 12),
               _buildCarSelector(),
-              const SizedBox(height: 20),
-              _buildImagePicker(),
-              const SizedBox(height: 20),
               
-              _buildSectionTitle('Rental Period'),
-              _buildCard([
-                InkWell(
-                  onTap: _showDatePickerModal,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Theme.of(context).primaryColor.withOpacity(0.3)),
-                      borderRadius: BorderRadius.circular(12),
-                      color: Theme.of(context).primaryColor.withOpacity(0.05),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.calendar_today, color: Theme.of(context).primaryColor),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Select Dates',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _rentFromDate != null && _rentToDate != null
-                                    ? '${DateFormat('dd MMM').format(_rentFromDate!)} - ${DateFormat('dd MMM').format(_rentToDate!)}'
-                                    : 'Tap to select dates',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              if (_rentFromDate != null && _rentToDate != null)
-                                Text(
-                                  '${_pickupTime.format(context)} - ${_returnTime.format(context)}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.arrow_forward_ios, size: 16),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildTextField(
-                  controller: _totalDaysController,
-                  label: 'Total Days',
-                  icon: Icons.timer,
-                  keyboardType: TextInputType.number,
-                  onChanged: _onTotalDaysChanged,
-                  hint: 'Edit to update return date',
-                ),
-              ]),
-
-              const SizedBox(height: 20),
-              _buildSectionTitle('Vehicle Details'),
-              _buildCard([
-                _buildTextField(
-                  controller: _vehicleNumberController,
-                  label: 'Vehicle Number',
-                  icon: Icons.confirmation_number,
-                  validator: (v) => v?.trim().isEmpty == true ? 'Required' : null,
-                  readOnly: _selectedCarId != null,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildTextField(
-                        controller: _modelController,
-                        label: 'Model',
-                        icon: Icons.directions_car,
-                        validator: (v) => v?.trim().isEmpty == true ? 'Required' : null,
-                        readOnly: _selectedCarId != null,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildTextField(
-                        controller: _yearController,
-                        label: 'Year',
-                        icon: Icons.calendar_today,
-                        keyboardType: TextInputType.number,
-                        readOnly: _selectedCarId != null,
-                        validator: (v) {
-                          if (v?.trim().isEmpty == true) return 'Required';
-                          final y = int.tryParse(v!);
-                          if (y == null || y < 1900 || y > DateTime.now().year + 1) return 'Invalid year';
-                          return null;
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ]),
+              const SizedBox(height: 24),
+              _buildSectionHeader('Rental Period', Icons.calendar_today_outlined),
+              const SizedBox(height: 12),
+              _buildRentalPeriodCard(),
               
-              const SizedBox(height: 20),
-              _buildSectionTitle('Renter Details'),
-              _buildCard([
-                _buildTextField(
-                  controller: _rentToPersonController,
-                  label: 'Rent To (Name)',
-                  icon: Icons.person,
-                  validator: (v) => v?.trim().isEmpty == true ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
-                _buildTextField(
-                  controller: _phoneNumberController,
-                  label: 'Phone Number',
-                  icon: Icons.phone,
-                  keyboardType: TextInputType.phone,
-                ),
-                const SizedBox(height: 12),
-                _buildTextField(
-                  controller: _addressController,
-                  label: 'Address',
-                  icon: Icons.location_on,
-                  maxLines: 2,
-                ),
-              ]),
+              const SizedBox(height: 24),
+              _buildSectionHeader('Renter Details', Icons.person_outline),
+              const SizedBox(height: 12),
+              _buildRenterDetailsForm(),
 
-              const SizedBox(height: 20),
-              _buildSectionTitle('Payment & Docs'),
-              _buildCard([
-                _buildTextField(
-                  controller: _totalAmountController,
-                  label: 'Total Amount',
-                  icon: Icons.attach_money,
-                  keyboardType: TextInputType.number,
-                  validator: (v) {
-                    if (v?.trim().isEmpty == true) return 'Required';
-                    if (double.tryParse(v!) == null) return 'Invalid amount';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                // Commission Checkbox
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: CheckboxListTile(
-                    title: const Text(
-                      'Commission Based',
-                      style: TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                    subtitle: const Text(
-                      'Check if this rental is commission-based',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    value: _isCommissionBased,
-                    onChanged: (value) {
-                      setState(() {
-                        _isCommissionBased = value ?? false;
-                      });
-                    },
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildDocumentPicker(),
-              ]),
+              const SizedBox(height: 24),
+              _buildSectionHeader('Payment & Documents', Icons.payment_outlined),
+              const SizedBox(height: 12),
+              _buildPaymentAndDocsForm(),
 
               const SizedBox(height: 32),
               SizedBox(
-                height: 54,
+                height: 56,
                 child: ElevatedButton(
                   onPressed: _saveRental,
                   style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    elevation: 2,
+                    elevation: 4,
+                    shadowColor: Theme.of(context).primaryColor.withOpacity(0.4),
                   ),
                   child: Text(
-                    widget.rental != null ? 'Update Rental' : 'Add Rental',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    widget.rental != null ? 'Update Rental' : 'Create Rental',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildProgressIndicator() {
+    // A simple step indicator or just a nice header area
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.withOpacity(0.1)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              widget.rental != null 
+                  ? 'Editing rental details' 
+                  : 'Fill in the details to create a new rental',
+              style: TextStyle(color: Colors.blue[700], fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Icon(icon, size: 20, color: Colors.black87),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+      ],
     );
   }
 
@@ -694,76 +548,58 @@ class _AddRentalPageState extends State<AddRentalPage> {
     return BlocBuilder<CarBloc, CarState>(
       builder: (context, state) {
         if (state is CarLoaded) {
-          final rentalState = context.read<RentalBloc>().state;
-          List<Car> availableCars = state.cars;
-          
-          if (rentalState is RentalLoaded && _rentFromDate != null && _rentToDate != null) {
-            availableCars = state.cars.where((car) {
-              final isRented = rentalState.rentals.any((rental) {
-                if (rental.carId != car.id) return false;
-                if (rental.status == RentalStatus.completed) return false;
-                
-                final rStart = rental.rentFromDate;
-                final rEnd = rental.rentToDate;
-                final nStart = _rentFromDate!;
-                final nEnd = _rentToDate!;
-                
-                return rStart.isBefore(nEnd) && rEnd.isAfter(nStart);
-              });
-              return !isRented;
-            }).toList();
-          }
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSectionTitle('Select Car'),
-              InkWell(
-                onTap: () {
-                  if (_rentFromDate == null || _rentToDate == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Please select dates first to see available cars')),
-                    );
-                    return;
-                  }
-                  _showCarSelectionModal(context, availableCars);
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.blue.shade200, width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blue.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+          // Pass all cars to the modal, availability will be checked there
+          return InkWell(
+            onTap: () {
+              if (_rentFromDate == null || _rentToDate == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please select dates first to see available cars'),
+                    behavior: SnackBarBehavior.floating,
                   ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.directions_car, color: Colors.blue.shade700),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Text(
-                          _selectedCarId != null && state.cars.any((c) => c.id == _selectedCarId)
-                              ? '${state.cars.firstWhere((c) => c.id == _selectedCarId).make} ${state.cars.firstWhere((c) => c.id == _selectedCarId).model}'
-                              : 'Tap to select a car',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: _selectedCarId != null ? Colors.black87 : Colors.grey,
-                          ),
-                        ),
-                      ),
-                      const Icon(Icons.arrow_drop_down),
-                    ],
-                  ),
+                );
+                return;
+              }
+              _showCarSelectionModal(context, state.cars);
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _selectedCarId != null ? Colors.blue : Colors.grey.shade300,
+                  width: 1,
                 ),
               ),
-            ],
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.directions_car,
+                    color: _selectedCarId != null ? Colors.blue : Colors.grey.shade400,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _selectedCarId != null && state.cars.any((c) => c.id == _selectedCarId)
+                          ? '${state.cars.firstWhere((c) => c.id == _selectedCarId).make} ${state.cars.firstWhere((c) => c.id == _selectedCarId).model} (${state.cars.firstWhere((c) => c.id == _selectedCarId).vehicleNumber})'
+                          : 'Select Vehicle',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: _selectedCarId != null ? FontWeight.w600 : FontWeight.normal,
+                        color: _selectedCarId != null ? Colors.black87 : Colors.grey.shade600,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.arrow_drop_down,
+                    color: Colors.grey.shade600,
+                  ),
+                ],
+              ),
+            ),
           );
         }
         return const SizedBox();
@@ -771,116 +607,271 @@ class _AddRentalPageState extends State<AddRentalPage> {
     );
   }
 
-  void _showCarSelectionModal(BuildContext context, List<Car> cars) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        height: 500,
-        child: Column(
-          children: [
-            const Text(
-              'Available Cars',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: cars.isEmpty
-                  ? const Center(child: Text('No cars available for selected dates'))
-                  : ListView.builder(
-                      itemCount: cars.length,
-                      itemBuilder: (context, index) {
-                        final car = cars[index];
-                        return ListTile(
-                          leading: car.imagePath != null
-                              ? CircleAvatar(backgroundImage: FileImage(File(car.imagePath!)))
-                              : const CircleAvatar(child: Icon(Icons.directions_car)),
-                          title: Text('${car.make} ${car.model} (${car.year})'),
-                          subtitle: Text('₹${car.pricePerDay}/day'),
-                          onTap: () {
-                            _onCarSelected(car);
-                            Navigator.pop(context);
-                          },
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: Colors.grey[700],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCard(List<Widget> children) {
+  Widget _buildRentalPeriodCard() {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
-            offset: const Offset(0, 2),
+            offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: Colors.grey.shade100),
       ),
-      child: Column(children: children),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: _showDatePickerModal,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.date_range, color: Colors.orange.shade700),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Date Range',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade500,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _rentFromDate != null && _rentToDate != null
+                              ? '${DateFormat('dd MMM').format(_rentFromDate!)} - ${DateFormat('dd MMM').format(_rentToDate!)}'
+                              : 'Select dates',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${_totalDaysController.text} Days',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pickup Time',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade500,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _pickupTime.format(context),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  height: 30,
+                  width: 1,
+                  color: Colors.grey.shade200,
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Return Time',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade500,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _returnTime.format(context),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildTextField({
+  Widget _buildRenterDetailsForm() {
+    return Column(
+      children: [
+        _buildModernTextField(
+          controller: _rentToPersonController,
+          label: 'Full Name',
+          hint: 'Enter renter\'s name',
+          icon: Icons.person_outline,
+          validator: (v) => v?.trim().isEmpty == true ? 'Required' : null,
+        ),
+        const SizedBox(height: 16),
+        _buildModernTextField(
+          controller: _phoneNumberController,
+          label: 'Phone Number',
+          hint: 'Enter phone number',
+          icon: Icons.phone_outlined,
+          keyboardType: TextInputType.phone,
+        ),
+        const SizedBox(height: 16),
+        _buildModernTextField(
+          controller: _addressController,
+          label: 'Address',
+          hint: 'Enter full address',
+          icon: Icons.location_on_outlined,
+          maxLines: 2,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentAndDocsForm() {
+    return Column(
+      children: [
+        _buildModernTextField(
+          controller: _totalAmountController,
+          label: 'Total Amount',
+          hint: '0.00',
+          icon: Icons.currency_rupee,
+          keyboardType: TextInputType.number,
+          validator: (v) {
+            if (v?.trim().isEmpty == true) return 'Required';
+            if (double.tryParse(v!) == null) return 'Invalid amount';
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: SwitchListTile(
+            title: const Text(
+              'Commission Based',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              'Enable if this rental involves commission',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+            ),
+            value: _isCommissionBased,
+            onChanged: (value) {
+              setState(() {
+                _isCommissionBased = value;
+              });
+            },
+            activeColor: Colors.blue,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildDocumentPicker(),
+      ],
+    );
+  }
+
+  Widget _buildModernTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    String? hint,
     TextInputType? keyboardType,
     int maxLines = 1,
     String? Function(String?)? validator,
     void Function(String)? onChanged,
-    String? hint,
     bool readOnly = false,
   }) {
     return TextFormField(
       controller: controller,
       readOnly: readOnly,
+      style: const TextStyle(fontWeight: FontWeight.w500),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        prefixIcon: Icon(icon, color: Colors.blue.shade400),
+        hintStyle: TextStyle(color: Colors.grey.shade400),
+        prefixIcon: Icon(icon, color: Colors.grey.shade500, size: 22),
+        filled: true,
+        fillColor: readOnly ? Colors.grey.shade100 : Colors.white,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.grey.shade200),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.blue.shade400, width: 1.5),
         ),
-        filled: true,
-        fillColor: readOnly ? Colors.grey.shade200 : Colors.grey.shade50,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.red.shade200),
+        ),
+        contentPadding: const EdgeInsets.all(20),
       ),
       keyboardType: keyboardType,
       maxLines: maxLines,
@@ -889,71 +880,62 @@ class _AddRentalPageState extends State<AddRentalPage> {
     );
   }
 
-  Widget _buildImagePicker() {
-    return GestureDetector(
-      onTap: _selectedCarId == null ? _pickImage : null,
-      child: Container(
-        height: 180,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
-          image: _imagePath != null
-              ? DecorationImage(
-                  image: FileImage(File(_imagePath!)),
-                  fit: BoxFit.cover,
-                )
-              : null,
-        ),
-        child: _imagePath == null
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.add_a_photo, size: 48, color: Colors.grey.shade400),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Tap to add vehicle image',
-                    style: TextStyle(color: Colors.grey.shade600),
-                  ),
-                ],
-              )
-            : null,
-      ),
-    );
-  }
 
   Widget _buildDocumentPicker() {
     return InkWell(
       onTap: _documentPath == null ? _pickDocument : null,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(12),
-          color: Colors.grey.shade50,
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            Icon(Icons.description, color: Colors.blue.shade400),
-            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _documentPath != null ? Colors.green.shade50 : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                _documentPath != null ? Icons.check_circle_outline : Icons.description_outlined,
+                color: _documentPath != null ? Colors.green : Colors.grey.shade600,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Document',
+                    'Rental Agreement / ID',
                     style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade800,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     _documentPath != null
                         ? path.basename(_documentPath!)
-                        : 'No document attached',
-                    style: const TextStyle(fontWeight: FontWeight.w500),
+                        : 'Upload document (PDF/Image)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _documentPath != null ? Colors.green : Colors.grey.shade500,
+                      fontWeight: _documentPath != null ? FontWeight.w600 : FontWeight.normal,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
@@ -969,10 +951,200 @@ class _AddRentalPageState extends State<AddRentalPage> {
                 },
               )
             else
-              TextButton(
-                onPressed: _pickDocument,
-                child: const Text('Upload'),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'Upload',
+                  style: TextStyle(
+                    color: Colors.blue.shade700,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCarSelectionModal(BuildContext context, List<Car> cars) {
+    final rentalState = context.read<RentalBloc>().state;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Select Vehicle',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: cars.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.directions_car_outlined, size: 64, color: Colors.grey.shade300),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No cars found',
+                            style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.all(20),
+                      itemCount: cars.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 16),
+                      itemBuilder: (context, index) {
+                        final car = cars[index];
+                        bool isRented = false;
+
+                        if (rentalState is RentalLoaded && _rentFromDate != null && _rentToDate != null) {
+                          isRented = rentalState.rentals.any((rental) {
+                            if (rental.carId != car.id) return false;
+                            if (rental.status == RentalStatus.completed) return false;
+                            if (rental.isCancelled) return false;
+
+                            final rStart = rental.rentFromDate;
+                            final rEnd = rental.rentToDate;
+                            final nStart = _rentFromDate!;
+                            final nEnd = _rentToDate!;
+
+                            return rStart.isBefore(nEnd) && rEnd.isAfter(nStart);
+                          });
+                        }
+
+                        return InkWell(
+                          onTap: isRented
+                              ? null
+                              : () {
+                                  _onCarSelected(car);
+                                  Navigator.pop(context);
+                                },
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: isRented ? Colors.red.shade100 : Colors.grey.shade200,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              color: isRented ? Colors.red.shade50.withOpacity(0.3) : Colors.white,
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 80,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(12),
+                                    image: car.imagePath != null
+                                        ? DecorationImage(
+                                            image: FileImage(File(car.imagePath!)),
+                                            fit: BoxFit.cover,
+                                          )
+                                        : null,
+                                  ),
+                                  child: car.imagePath == null
+                                      ? Icon(Icons.directions_car, color: Colors.grey.shade400)
+                                      : null,
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${car.make} ${car.model}',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: isRented ? Colors.grey : Colors.black87,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        car.vehicleNumber,
+                                        style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    if (isRented)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.shade100,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          'Running',
+                                          style: TextStyle(
+                                            color: Colors.red.shade700,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      )
+                                    else ...[
+                                      Text(
+                                        '₹${car.pricePerDay.toStringAsFixed(0)}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: Colors.green,
+                                        ),
+                                      ),
+                                      const Text(
+                                        '/day',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
           ],
         ),
       ),

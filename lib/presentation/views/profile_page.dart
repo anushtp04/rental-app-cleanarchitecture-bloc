@@ -312,7 +312,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   
                   // Calculate commission revenue (exclude cancelled)
                   commissionRevenue = state.rentals
-                      .where((r) => r.isCommissionBased && !r.isCancelled)
+                      .where((r) => r.isCommissionBased && !r.isCancelled && r.status == RentalStatus.completed)
                       .fold(0, (sum, item) => sum + item.totalAmount);
                 }
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../../domain/entities/rental.dart';
 import '../bloc/rental/rental_bloc.dart';
 import 'available_cars_page.dart';
@@ -23,6 +22,9 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     // Get time-based greeting
     final hour = DateTime.now().hour;
     String greeting;
@@ -35,6 +37,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: RefreshIndicator(
         onRefresh: () async {
           context.read<RentalBloc>().add(LoadRentals());
@@ -44,9 +47,12 @@ class _HomePageState extends State<HomePage> {
             SliverAppBar(
               floating: true,
               pinned: true,
-              expandedHeight: 120,
+              expandedHeight: 100,
+              backgroundColor: theme.scaffoldBackgroundColor,
+              surfaceTintColor: Colors.transparent,
               flexibleSpace: FlexibleSpaceBar(
-                titlePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                centerTitle: false,
                 title: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -57,25 +63,36 @@ class _HomePageState extends State<HomePage> {
                         children: [
                           Text(
                             greeting,
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurface,
-                                ),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                              fontSize: 14,
+                            ),
                           ),
                           Text(
                             'Admin Dashboard',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Theme.of(context).colorScheme.secondary,
-                                ),
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.onSurface,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                      child: Icon(
-                        Icons.person,
-                        color: Theme.of(context).colorScheme.primary,
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: colorScheme.primary.withOpacity(0.2),
+                          width: 2,
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: 20,
+                        backgroundColor: colorScheme.primaryContainer,
+                        child: Icon(
+                          Icons.person_rounded,
+                          color: colorScheme.primary,
+                        ),
                       ),
                     ),
                   ],
@@ -84,65 +101,34 @@ class _HomePageState extends State<HomePage> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(20.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Quick Actions',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildDashboardCard(
-                            context,
-                            title: 'Available Cars',
-                            icon: Icons.directions_car_filled_rounded,
-                            color: Colors.orange,
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (context) => const AvailableCarsPage(),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildDashboardCard(
-                            context,
-                            title: 'Add Rental',
-                            icon: Icons.add_circle_rounded,
-                            color: Theme.of(context).primaryColor,
-                            onTap: () {
-                              context.pushNamed('add-rental');
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
+                    _buildQuickActions(context),
                     const SizedBox(height: 32),
                     _buildOvertimeRentalsSection(context),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           'Recent Rentals',
-                          style: Theme.of(context).textTheme.headlineMedium,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         TextButton(
                           onPressed: () {
                             context.pushNamed('all-rentals');
                           },
+                          style: TextButton.styleFrom(
+                            foregroundColor: colorScheme.primary,
+                          ),
                           child: const Text('View All'),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
                     _buildRecentRentalsList(context),
                   ],
                 ),
@@ -154,6 +140,56 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildQuickActions(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quick Actions',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: theme.textTheme.titleMedium?.color?.withOpacity(0.8),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildDashboardCard(
+                context,
+                title: 'Available Cars',
+                icon: Icons.directions_car_filled_rounded,
+                color: Colors.orange,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const AvailableCarsPage(),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildDashboardCard(
+                context,
+                title: 'Add Rental',
+                icon: Icons.add_circle_rounded,
+                color: colorScheme.primary,
+                onTap: () {
+                  context.pushNamed('add-rental');
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   Widget _buildDashboardCard(
     BuildContext context, {
     required String title,
@@ -161,25 +197,27 @@ class _HomePageState extends State<HomePage> {
     required Color color,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(context);
+    
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         child: Container(
-          height: 120,
-          padding: const EdgeInsets.all(20),
+          height: 110,
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Theme.of(context).cardTheme.color,
-            borderRadius: BorderRadius.circular(24),
+            color: theme.cardTheme.color,
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: Theme.of(context).dividerColor.withOpacity(0.1),
+              color: theme.dividerColor.withOpacity(0.1),
             ),
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.05),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+                color: color.withOpacity(0.08),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
@@ -188,18 +226,19 @@ class _HomePageState extends State<HomePage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, size: 24, color: color),
               ),
               Text(
                 title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
               ),
             ],
           ),
@@ -241,7 +280,7 @@ class _HomePageState extends State<HomePage> {
                 child: Row(
                   children: [
                     Icon(
-                      Icons.warning_rounded,
+                      Icons.warning_amber_rounded,
                       color: Theme.of(context).colorScheme.error,
                       size: 24,
                     ),
@@ -269,77 +308,6 @@ class _HomePageState extends State<HomePage> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: overtimeRentals.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final rental = overtimeRentals[index];
-                  final overdueDuration = now.difference(rental.rentToDate);
-                  final overdueDays = overdueDuration.inDays;
-                  final overdueHours = overdueDuration.inHours % 24;
-
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardTheme.color,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.error.withOpacity(0.2),
-                      ),
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.all(16),
-                      leading: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.errorContainer.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.access_time_filled,
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
-                      title: Text(
-                        '${rental.vehicleNumber} - ${rental.model}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 4),
-                          Text('Renter: ${rental.rentToPerson}'),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.error,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  'Overdue: ${overdueDays}d ${overdueHours}h',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      onTap: () {
-                        context.pushNamed('rental-details', extra: rental);
-                      },
-                    ),
-                  );
-                },
-              ),
             ],
           );
         }
@@ -356,39 +324,36 @@ class _HomePageState extends State<HomePage> {
         } else if (state is RentalLoaded) {
           if (state.rentals.isEmpty) {
             return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.no_crash_outlined,
-                    size: 64,
-                    color: Theme.of(context).disabledColor,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No rentals yet',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Theme.of(context).disabledColor,
-                        ),
-                  ),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.no_crash_outlined,
+                      size: 48,
+                      color: Theme.of(context).disabledColor.withOpacity(0.5),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No rentals yet',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Theme.of(context).disabledColor,
+                          ),
+                    ),
+                  ],
+                ),
               ),
             );
           }
           final sortedRentals = List<Rental>.from(state.rentals)
             ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
           final recentRentals = sortedRentals.take(5).toList();
-          
-          return ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: recentRentals.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final rental = recentRentals[index];
-              return RentalTile(rental: rental);
-            },
-          );
+
+          return Column(children: List.generate(recentRentals.length, (index) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: RentalTile(rental: recentRentals[index]),
+          )));
         } else if (state is RentalError) {
           return Center(child: Text('Error: ${state.message}'));
         }

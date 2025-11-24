@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
+
 import 'dart:io';
 import 'package:uuid/uuid.dart';
 import '../../domain/entities/car.dart';
+import '../../domain/entities/rental.dart';
 import '../bloc/car/car_bloc.dart';
+import '../bloc/rental/rental_bloc.dart';
 import '../../core/utils/image_helper.dart';
 
 class AvailableCarsPage extends StatefulWidget {
@@ -19,6 +21,7 @@ class _AvailableCarsPageState extends State<AvailableCarsPage> {
   void initState() {
     super.initState();
     context.read<CarBloc>().add(LoadCars());
+    context.read<RentalBloc>().add(LoadRentals());
   }
 
   @override
@@ -29,11 +32,11 @@ class _AvailableCarsPageState extends State<AvailableCarsPage> {
         elevation: 0,
       ),
       body: BlocBuilder<CarBloc, CarState>(
-        builder: (context, state) {
-          if (state is CarLoading) {
+        builder: (context, carState) {
+          if (carState is CarLoading) {
             return const Center(child: CircularProgressIndicator());
-          } else if (state is CarLoaded) {
-            if (state.cars.isEmpty) {
+          } else if (carState is CarLoaded) {
+            if (carState.cars.isEmpty) {
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -53,22 +56,37 @@ class _AvailableCarsPageState extends State<AvailableCarsPage> {
                 ),
               );
             }
-            return GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.75,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: state.cars.length,
-              itemBuilder: (context, index) {
-                final car = state.cars[index];
-                return _buildModernCarCard(context, car);
+            
+            return BlocBuilder<RentalBloc, RentalState>(
+              builder: (context, rentalState) {
+                Set<String> rentedCarIds = {};
+                if (rentalState is RentalLoaded) {
+                  rentedCarIds = rentalState.rentals
+                      .where((r) => r.status == RentalStatus.ongoing && !r.isCancelled)
+                      .map((r) => r.carId)
+                      .whereType<String>()
+                      .toSet() ;
+                }
+
+                return GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.75,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                  ),
+                  itemCount: carState.cars.length,
+                  itemBuilder: (context, index) {
+                    final car = carState.cars[index];
+                    final isRented = rentedCarIds.contains(car.id);
+                    return _buildModernCarCard(context, car, isRented: isRented);
+                  },
+                );
               },
             );
-          } else if (state is CarError) {
-            return Center(child: Text('Error: ${state.message}'));
+          } else if (carState is CarError) {
+            return Center(child: Text('Error: ${carState.message}'));
           }
           return const SizedBox();
         },
@@ -80,103 +98,8 @@ class _AvailableCarsPageState extends State<AvailableCarsPage> {
     );
   }
 
-  Widget _buildCarCard(BuildContext context, Car car) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 2,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Car Image
-          Container(
-            height: 180,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              image: car.imagePath != null
-                  ? DecorationImage(
-                      image: FileImage(File(car.imagePath!)),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
-            ),
-            child: car.imagePath == null
-                ? Icon(Icons.directions_car, size: 64, color: Colors.grey[400])
-                : null,
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${car.make} ${car.model}',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '${car.year}',
-                        style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    _buildInfoChip(Icons.palette, car.color),
-                    const SizedBox(width: 8),
-                    _buildInfoChip(Icons.settings, car.transmission == TransmissionType.manual ? 'Manual' : 'Automatic'),
-                    const SizedBox(width: 8),
-                    _buildInfoChip(Icons.attach_money, '${car.pricePerDay}/day'),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Divider(),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.person, size: 16, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Owner: ${car.ownerName}',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.edit, color: Colors.blue),
-                      onPressed: () => _showAddCarDialog(context, car: car),
-                      constraints: const BoxConstraints(),
-                      padding: EdgeInsets.zero,
-                    ),
-                    const SizedBox(width: 16),
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _confirmDelete(context, car),
-                      constraints: const BoxConstraints(),
-                      padding: EdgeInsets.zero,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildModernCarCard(BuildContext context, Car car) {
+  Widget _buildModernCarCard(BuildContext context, Car car, {bool isRented = false}) {
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -224,6 +147,40 @@ class _AvailableCarsPageState extends State<AvailableCarsPage> {
                       ),
                     ),
                   ),
+                  if (isRented)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.directions_car, color: Colors.white, size: 12),
+                            SizedBox(width: 4),
+                            Text(
+                              'Running',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -407,6 +364,13 @@ class _AddCarFormState extends State<AddCarForm> {
 
   void _save() {
     if (_formKey.currentState!.validate()) {
+      if (_imagePath == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select an image')),
+        );
+        return;
+      }
+
       final car = Car(
         id: widget.car?.id ?? const Uuid().v4(),
         make: _makeController.text.trim(),
@@ -433,146 +397,321 @@ class _AddCarFormState extends State<AddCarForm> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
-      height: MediaQuery.of(context).size.height * 0.85,
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              widget.car != null ? 'Edit Car' : 'Add New Car',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+      height: MediaQuery.of(context).size.height * 0.9,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
             ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: SingleChildScrollView(
+          ),
+          const SizedBox(height: 20),
+          Text(
+            widget.car != null ? 'Edit Vehicle' : 'Add New Vehicle',
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 24),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Form(
+                key: _formKey,
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    GestureDetector(
-                      onTap: _pickImage,
-                      child: Container(
-                        height: 150,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade300),
-                          image: _imagePath != null
-                              ? DecorationImage(
-                                  image: FileImage(File(_imagePath!)),
-                                  fit: BoxFit.cover,
-                                )
-                              : null,
-                        ),
-                        child: _imagePath == null
-                            ? const Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.add_a_photo, size: 40, color: Colors.grey),
-                                    SizedBox(height: 8),
-                                    Text('Add Car Photo'),
-                                  ],
-                                ),
-                              )
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    _buildTextField(_ownerNameController, 'Owner Name', Icons.person),
-                    const SizedBox(height: 12),
+                    _buildImagePicker(),
+                    const SizedBox(height: 32),
+                    
+                    _buildSectionTitle('Vehicle Details'),
+                    const SizedBox(height: 16),
                     Row(
                       children: [
-                        Expanded(child: _buildTextField(_ownerPhoneController, 'Owner Phone', Icons.phone, isPhone: true),),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildTextField(_numberController, 'Vehicle No.', Icons.numbers)),
+                        Expanded(child: _buildModernTextField(_makeController, 'Make', Icons.branding_watermark_outlined)),
+                        const SizedBox(width: 16),
+                        Expanded(child: _buildModernTextField(_modelController, 'Model', Icons.directions_car_outlined)),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     Row(
                       children: [
-                        Expanded(child: _buildTextField(_makeController, 'Make (Brand)', Icons.branding_watermark)),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildTextField(_modelController, 'Model', Icons.directions_car)),
+                        Expanded(child: _buildModernTextField(_yearController, 'Year', Icons.calendar_today_outlined, isNumber: true)),
+                        const SizedBox(width: 16),
+                        Expanded(child: _buildModernTextField(_colorController, 'Color', Icons.palette_outlined)),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(child: _buildTextField(_yearController, 'Year', Icons.calendar_today, isNumber: true)),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildTextField(_colorController, 'Color', Icons.palette)),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade400),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: DropdownButtonFormField<TransmissionType>(
-                              value: _selectedTransmission,
-                              decoration: const InputDecoration(
-                                labelText: 'Transmission',
-                                prefixIcon: Icon(Icons.settings, size: 20),
-                                border: InputBorder.none,
-                              ),
-                              items: TransmissionType.values.map((type) {
-                                return DropdownMenuItem(
-                                  value: type,
-                                  child: Text(
-                                    type == TransmissionType.manual ? 'Manual' : 'Automatic',
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (value) {
-                                if (value != null) {
-                                  setState(() {
-                                    _selectedTransmission = value;
-                                  });
-                                }
-                              },
-                            ),
+                    const SizedBox(height: 16),
+                    _buildModernTextField(_numberController, 'Vehicle Number', Icons.confirmation_number_outlined),
+                    const SizedBox(height: 16),
+                    _buildTransmissionSelector(),
+                    
+                    const SizedBox(height: 32),
+                    _buildSectionTitle('Pricing'),
+                    const SizedBox(height: 16),
+                    _buildModernTextField(_priceController, 'Price per Day (₹)', Icons.currency_rupee, isNumber: true),
+
+                    const SizedBox(height: 32),
+                    _buildSectionTitle('Owner Details'),
+                    const SizedBox(height: 16),
+                    _buildModernTextField(_ownerNameController, 'Owner Name', Icons.person_outline),
+                    const SizedBox(height: 16),
+                    _buildModernTextField(_ownerPhoneController, 'Owner Phone', Icons.phone_outlined, isPhone: true),
+                    
+                    const SizedBox(height: 40),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: _save,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildTextField(_priceController, 'Price/Day', Icons.attach_money, isNumber: true)),
-                      ],
+                        child: Text(
+                          widget.car != null ? 'Update Vehicle' : 'Add Vehicle',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 40),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _save,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: Text(widget.car != null ? 'Update Car' : 'Add Car'),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {bool isNumber = false, bool isPhone = false}) {
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, size: 20),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: Colors.black87,
       ),
-      keyboardType: isNumber ? TextInputType.number : (isPhone ? TextInputType.phone : TextInputType.text),
-      validator: (value) => value?.isEmpty == true ? 'Required' : null,
+    );
+  }
+
+  Widget _buildImagePicker() {
+    return GestureDetector(
+      onTap: _pickImage,
+      child: Container(
+        height: 200,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.grey.shade200),
+          image: _imagePath != null
+              ? DecorationImage(
+                  image: FileImage(File(_imagePath!)),
+                  fit: BoxFit.cover,
+                )
+              : null,
+        ),
+        child: _imagePath == null
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Icon(Icons.add_a_photo_outlined, size: 32, color: Colors.grey.shade400),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Add Vehicle Photo',
+                    style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              )
+            : Container(
+                alignment: Alignment.bottomRight,
+                padding: const EdgeInsets.all(16),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.edit, color: Colors.white, size: 20),
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildModernTextField(
+    TextEditingController controller,
+    String label,
+    IconData icon, {
+    bool isNumber = false,
+    bool isPhone = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: isNumber
+              ? TextInputType.number
+              : (isPhone ? TextInputType.phone : TextInputType.text),
+          style: const TextStyle(fontWeight: FontWeight.w500),
+          decoration: InputDecoration(
+            hintText: 'Enter $label',
+            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+            prefixIcon: Icon(icon, size: 20, color: Colors.grey.shade400),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.black, width: 1.5),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          ),
+          validator: (value) => value?.isEmpty == true ? 'Required' : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTransmissionSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Transmission',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _selectedTransmission = TransmissionType.manual),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: _selectedTransmission == TransmissionType.manual ? Colors.white : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: _selectedTransmission == TransmissionType.manual
+                          ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.settings,
+                          size: 18,
+                          color: _selectedTransmission == TransmissionType.manual ? Colors.black : Colors.grey,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Manual',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: _selectedTransmission == TransmissionType.manual ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _selectedTransmission = TransmissionType.automatic),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: _selectedTransmission == TransmissionType.automatic ? Colors.white : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: _selectedTransmission == TransmissionType.automatic
+                          ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.auto_mode,
+                          size: 18,
+                          color: _selectedTransmission == TransmissionType.automatic ? Colors.black : Colors.grey,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Automatic',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: _selectedTransmission == TransmissionType.automatic ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
