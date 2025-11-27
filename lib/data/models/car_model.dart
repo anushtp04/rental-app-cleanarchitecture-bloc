@@ -87,36 +87,36 @@ class CarModel extends HiveObject {
     );
   }
 
-  // Firestore conversion methods
-  Map<String, dynamic> toFirestore() {
+  // Supabase conversion methods
+  Map<String, dynamic> toSupabase() {
     return {
       'id': id,
-      'vehicleNumber': vehicleNumber,
+      'vehicle_number': vehicleNumber,
       'make': make,
       'model': model,
       'year': year,
       'color': color,
       'transmission': transmission,
-      'ownerName': ownerName,
-      'ownerPhoneNumber': ownerPhoneNumber,
-      'imagePath': imagePath,
-      'pricePerDay': pricePerDay,
+      'owner_name': ownerName,
+      'owner_phone_number': ownerPhoneNumber,
+      'image_path': imagePath,
+      'price_per_day': pricePerDay,
     };
   }
 
-  factory CarModel.fromFirestore(Map<String, dynamic> map, String id) {
+  factory CarModel.fromSupabase(Map<String, dynamic> map) {
     return CarModel(
-      id: id,
-      vehicleNumber: map['vehicleNumber'] as String,
+      id: map['id'] as String,
+      vehicleNumber: map['vehicle_number'] as String,
       make: map['make'] as String,
       model: map['model'] as String,
       year: map['year'] as int,
       color: map['color'] as String,
       transmission: map['transmission'] as String,
-      ownerName: map['ownerName'] as String,
-      ownerPhoneNumber: map['ownerPhoneNumber'] as String,
-      imagePath: map['imagePath'] as String?,
-      pricePerDay: (map['pricePerDay'] as num).toDouble(),
+      ownerName: map['owner_name'] as String,
+      ownerPhoneNumber: map['owner_phone_number'] as String,
+      imagePath: map['image_path'] as String?,
+      pricePerDay: (map['price_per_day'] as num).toDouble(),
     );
   }
 }

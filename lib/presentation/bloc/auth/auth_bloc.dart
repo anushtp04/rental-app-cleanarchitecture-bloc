@@ -1,13 +1,13 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../../../core/service/firebase_auth_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
+import '../../../core/service/supabase_auth_service.dart';
 
 part 'auth_event.dart';
 part 'auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  final FirebaseAuthService _authService;
+  final SupabaseAuthService _authService;
 
   AuthBloc(this._authService) : super(AuthInitial()) {
     on<AuthCheckRequested>(_onAuthCheckRequested);
@@ -15,10 +15,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthLogoutRequested>(_onAuthLogoutRequested);
 
     // Listen to auth state changes
-    _authService.authStateChanges.listen((User? user) {
-      if (user != null) {
+    _authService.authStateChanges.listen((supabase.AuthState authState) {
+      if (authState.event == supabase.AuthChangeEvent.signedIn) {
         add(AuthCheckRequested());
-      } else {
+      } else if (authState.event == supabase.AuthChangeEvent.signedOut) {
         emit(AuthUnauthenticated());
       }
     });
@@ -31,7 +31,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     final user = _authService.currentUser;
     if (user != null) {
       emit(AuthAuthenticated(
-        userId: user.uid,
+        userId: user.id,
         email: user.email ?? '',
       ));
     } else {
@@ -45,15 +45,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     try {
-      final userCredential = await _authService.signInWithEmailAndPassword(
+      final response = await _authService.signInWithEmailAndPassword(
         email: event.email,
         password: event.password,
       );
       
-      if (userCredential.user != null) {
+      if (response.user != null) {
         emit(AuthAuthenticated(
-          userId: userCredential.user!.uid,
-          email: userCredential.user!.email ?? '',
+          userId: response.user!.id,
+          email: response.user!.email ?? '',
         ));
       } else {
         emit(const AuthError('Login failed. Please try again.'));

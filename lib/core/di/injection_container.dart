@@ -1,8 +1,8 @@
 import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../data/data_source/rental_firestore_data_source.dart';
-import '../../data/data_source/car_firestore_data_source.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../data/data_source/rental_supabase_data_source.dart';
+import '../../data/data_source/car_supabase_data_source.dart';
 import '../../data/repositories/rental_repository_impl.dart';
 import '../../data/repositories/car_repository_impl.dart';
 import '../../data/models/rental_model.dart';
@@ -19,7 +19,7 @@ import '../../presentation/bloc/rental/rental_bloc.dart';
 import '../../presentation/bloc/car/car_bloc.dart';
 import '../../presentation/bloc/theme/theme_bloc.dart';
 import '../../presentation/bloc/auth/auth_bloc.dart';
-import '../../core/service/firebase_auth_service.dart';
+import '../../core/service/supabase_auth_service.dart';
 
 final sl = GetIt.instance;
 
@@ -37,26 +37,26 @@ Future<void> init() async {
   await Hive.openBox('theme'); // For theme preferences
 
   // Services
-  sl.registerLazySingleton<FirebaseAuthService>(() => FirebaseAuthService());
-  sl.registerLazySingleton<FirebaseFirestore>(() => FirebaseFirestore.instance);
+  sl.registerLazySingleton<SupabaseAuthService>(() => SupabaseAuthService());
+  sl.registerLazySingleton<SupabaseClient>(() => Supabase.instance.client);
 
-  // Data Sources - Firestore
-  sl.registerLazySingleton<RentalFirestoreDataSource>(
-    () => RentalFirestoreDataSourceImpl(
-      firestore: sl(),
+  // Data Sources - Supabase
+  sl.registerLazySingleton<RentalSupabaseDataSource>(
+    () => RentalSupabaseDataSourceImpl(
+      supabase: sl(),
       authService: sl(),
     ),
   );
 
-  sl.registerLazySingleton<CarFirestoreDataSource>(
-    () => CarFirestoreDataSourceImpl(
-      firestore: sl(),
+  sl.registerLazySingleton<CarSupabaseDataSource>(
+    () => CarSupabaseDataSourceImpl(
+      supabase: sl(),
       authService: sl(),
     ),
   );
 
   // BLoC
-  sl.registerFactory(() => ThemeBloc()..add(LoadTheme()));
+  sl.registerFactory(() => ThemeBloc());
   
   sl.registerFactory(
     () => AuthBloc(sl())..add(AuthCheckRequested()),
@@ -96,11 +96,11 @@ Future<void> init() async {
 
   // Rental Repository
   sl.registerLazySingleton<RentalRepository>(
-    () => RentalRepositoryImpl(sl<RentalFirestoreDataSource>()),
+    () => RentalRepositoryImpl(sl<RentalSupabaseDataSource>()),
   );
 
   // Car Repository
   sl.registerLazySingleton<CarRepository>(
-    () => CarRepositoryImpl(sl<CarFirestoreDataSource>()),
+    () => CarRepositoryImpl(sl<CarSupabaseDataSource>()),
   );
 }

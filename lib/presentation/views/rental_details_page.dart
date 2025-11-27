@@ -24,11 +24,10 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
   void initState() {
     super.initState();
     rental = widget.rental;
-    // Listen to rental updates
     context.read<RentalBloc>().stream.listen((state) {
       if (state is RentalLoaded) {
         final updatedRental = state.rentals.firstWhere(
-          (r) => r.id == rental.id,
+              (r) => r.id == rental.id,
           orElse: () => rental,
         );
         if (updatedRental.id == rental.id && updatedRental != rental) {
@@ -42,397 +41,263 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    Color statusColor;
-    IconData statusIcon;
-    String statusText;
-
-    // Check if cancelled first
-    if (rental.isCancelled) {
-      statusColor = Colors.red;
-      statusIcon = Icons.cancel;
-      statusText = 'Cancelled';
-    } else {
-      switch (rental.status) {
-        case RentalStatus.ongoing:
-          statusColor = Colors.green;
-          statusIcon = Icons.play_circle_filled;
-          statusText = 'Active';
-          break;
-        case RentalStatus.upcoming:
-          statusColor = Colors.orange;
-          statusIcon = Icons.schedule;
-          statusText = 'Upcoming';
-          break;
-        case RentalStatus.completed:
-          statusColor = Colors.grey;
-          statusIcon = Icons.check_circle;
-          statusText = 'Completed';
-          break;
-      }
-    }
+    final statusConfig = _getStatusConfig();
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.white,
       body: CustomScrollView(
         slivers: [
-          // App Bar with Image
-          SliverAppBar(
-            expandedHeight: 250,
-            pinned: true,
-            elevation: 0,
-            actions: rental.status != RentalStatus.completed
-                ? [
-                    IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () async {
-                        await context.pushNamed('add-rental', extra: rental);
-                        // Reload rentals after returning from edit page
-                        if (mounted) {
-                          context.read<RentalBloc>().add(LoadRentals());
-                        }
-                      },
-                    ),
-                  ]
-                : null,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (rental.imagePath != null)
-                    Image.file(
-                      File(rental.imagePath!),
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.grey[300],
-                          child: const Icon(Icons.directions_car, size: 80),
-                        );
-                      },
-                    )
-                  else
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Theme.of(context).primaryColor,
-                            Theme.of(context).primaryColor.withOpacity(0.7),
-                          ],
-                        ),
-                      ),
-                      child: const Icon(Icons.directions_car, size: 80, color: Colors.white),
-                    ),
-                  // Gradient overlay
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.7),
-                        ],
-                      ),
-                    ),
-                  ),
-                  // Vehicle info at bottom
-                  Positioned(
-                    bottom: 16,
-                    left: 16,
-                    right: 16,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: statusColor,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(statusIcon, color: Colors.white, size: 16),
-                              const SizedBox(width: 6),
-                              Text(
-                                statusText,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          rental.vehicleNumber,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            shadows: [
-                              Shadow(
-                                offset: Offset(0, 1),
-                                blurRadius: 3,
-                                color: Colors.black45,
-                              ),
-                            ],
-                          ),
-                        ),
-                        Text(
-                          '${rental.model} (${rental.year})',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            shadows: [
-                              Shadow(
-                                offset: Offset(0, 1),
-                                blurRadius: 3,
-                                color: Colors.black45,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Content
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Total Amount Card
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: rental.isCancelled 
-                            ? [Colors.red.shade400, Colors.red.shade600]
-                            : [Colors.green.shade400, Colors.green.shade600],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          rental.isCancelled 
-                              ? (rental.isCommissionBased 
-                                  ? 'Cancellation Amount (Commission Based)' 
-                                  : 'Cancellation Amount')
-                              : (rental.isCommissionBased 
-                                  ? 'Total Amount (Commission Based)' 
-                                  : 'Total Amount'),
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '₹${rental.isCancelled && rental.cancellationAmount != null ? rental.cancellationAmount!.toStringAsFixed(0) : rental.totalAmount.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        if (rental.isCancelled && rental.cancellationAmount != null) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Original: ₹${rental.totalAmount.toStringAsFixed(0)}',
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                              decoration: TextDecoration.lineThrough,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Rental Period Card
-                  _buildSectionCard(
-                    context,
-                    title: 'Rental Period',
-                    icon: Icons.calendar_month,
-                    color: Colors.blue,
-                    children: [
-                      _buildTimelineItem(
-                        context,
-                        icon: Icons.flight_takeoff,
-                        label: 'Pick-up',
-                        value: DateFormat('dd MMM yyyy, hh:mm a').format(rental.rentFromDate),
-                        color: Colors.blue,
-                      ),
+          _buildAppBar(statusConfig),
+          SliverList(
+            delegate: SliverChildListDelegate([
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    _buildQuickInfoRow(),
+                    const SizedBox(height: 20),
+                    _buildPaymentCard(),
+                    const SizedBox(height: 16),
+                    _buildRentalPeriodCard(),
+                    const SizedBox(height: 16),
+                    _buildCustomerCard(),
+                    if (rental.documentPath != null) ...[
                       const SizedBox(height: 16),
-                      _buildTimelineItem(
-                        context,
-                        icon: Icons.flight_land,
-                        label: 'Return',
-                        value: DateFormat('dd MMM yyyy, hh:mm a').format(rental.rentToDate),
-                        color: Colors.orange,
-                      ),
-                      if (rental.actualReturnDate != null) ...[
-                        const SizedBox(height: 16),
-                        _buildTimelineItem(
-                          context,
-                          icon: Icons.check_circle,
-                          label: 'Actual Return',
-                          value: DateFormat('dd MMM yyyy, hh:mm a').format(rental.actualReturnDate!),
-                          color: rental.actualReturnDate!.isAfter(rental.rentToDate)
-                              ? Colors.red
-                              : Colors.green,
-                        ),
-                      ],
+                      _buildDocumentCard(),
                     ],
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Renter Information Card
-                  _buildSectionCard(
-                    context,
-                    title: 'Renter Information',
-                    icon: Icons.person,
-                    color: Colors.purple,
-                    children: [
-                      _buildInfoRow(Icons.person_outline, 'Name', rental.rentToPerson),
-                      if (rental.contactNumber != null && rental.contactNumber!.isNotEmpty) ...[
-                        const Divider(height: 24),
-                        _buildInfoRow(Icons.phone_outlined, 'Phone', rental.contactNumber!),
-                      ],
-                      if (rental.address != null && rental.address!.isNotEmpty) ...[
-                        const Divider(height: 24),
-                        _buildInfoRow(Icons.location_on_outlined, 'Address', rental.address!),
-                      ],
+                    const SizedBox(height: 16),
+                    _buildMetaInfo(),
+                    if (rental.status != RentalStatus.completed && !rental.isCancelled) ...[
+                      const SizedBox(height: 24),
+                      _buildActionButton(),
                     ],
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Document Card
-                  if (rental.documentPath != null)
-                    _buildSectionCard(
-                      context,
-                      title: 'Document',
-                      icon: Icons.description,
-                      color: Colors.teal,
-                      children: [
-                        InkWell(
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => DocumentPreviewPage(
-                                  filePath: rental.documentPath!,
-                                  fileName: path.basename(rental.documentPath!),
-                                ),
-                              ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.teal.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.teal.withOpacity(0.3)),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(_getDocumentIcon(rental.documentPath!), color: Colors.teal),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    path.basename(rental.documentPath!),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                                const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.teal),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Metadata Card
-                  _buildSectionCard(
-                    context,
-                    title: 'Additional Info',
-                    icon: Icons.info_outline,
-                    color: Colors.grey,
-                    children: [
-                      _buildInfoRow(
-                        Icons.access_time,
-                        'Created',
-                        DateFormat('dd MMM yyyy, hh:mm a').format(rental.createdAt),
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Complete Rental Button
-                  if (rental.status != RentalStatus.completed && !rental.isCancelled)
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton.icon(
-                        onPressed: DateTime.now().isAfter(rental.rentToDate)
-                            ? () => _showCompleteRentalDialog(context)
-                            : null,
-                        icon: const Icon(Icons.check_circle_outline, size: 24),
-                        label: Text('Complete Rental',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: DateTime.now().isAfter(rental.rentToDate)
-                              ? Colors.green
-                              : Colors.grey,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 4,
-                        ),
-                      ),
-                    ),
-                  
-                  const SizedBox(height: 32),
-                ],
+                    const SizedBox(height: 32),
+                  ],
+                ),
               ),
-            ),
+            ]),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSectionCard(
-    BuildContext context, {
-    required String title,
-    required IconData icon,
-    required Color color,
-    required List<Widget> children,
-  }) {
+  SliverAppBar _buildAppBar(Map<String, dynamic> statusConfig) {
+    return SliverAppBar(
+      expandedHeight: 240,
+      floating: false,
+      pinned: true,
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      leading: IconButton(
+        icon: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.3),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+        ),
+        onPressed: () => Navigator.pop(context),
+      ),
+      actions: [
+        if (rental.status != RentalStatus.completed)
+          IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.edit, color: Colors.white, size: 20),
+            ),
+            onPressed: () async {
+              await context.pushNamed('add-rental', extra: rental);
+              if (mounted) {
+                context.read<RentalBloc>().add(LoadRentals());
+              }
+            },
+          ),
+      ],
+      flexibleSpace: FlexibleSpaceBar(
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Vehicle Image
+            rental.imagePath != null
+                ? Image.file(
+              File(rental.imagePath!),
+              fit: BoxFit.cover,
+            )
+                : Container(
+              color: const Color(0xFFF8F9FA),
+              child: const Icon(Icons.directions_car_outlined,
+                  size: 64, color: Color(0xFF6C757D)),
+            ),
+
+            // Dark Overlay for better text readability
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.2),
+                    Colors.black.withOpacity(0.5),
+                  ],
+                ),
+              ),
+            ),
+
+            // Vehicle Information Overlay
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: 20,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Status Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: statusConfig['color']!.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(statusConfig['icon'],
+                            color: Colors.white, size: 14),
+                        const SizedBox(width: 6),
+                        Text(
+                          statusConfig['text']!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Vehicle Number - Large and prominent
+                  Text(
+                    rental.vehicleNumber,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Model and Year
+                  Text(
+                    '${rental.model} • ${rental.year}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickInfoRow() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildQuickInfoItem(
+            icon: Icons.calendar_today,
+            label: 'Duration',
+            value: _calculateDuration(),
+          ),
+          Container(
+            width: 1,
+            height: 30,
+            color: Colors.grey[300],
+          ),
+          _buildQuickInfoItem(
+            icon: Icons.person,
+            label: 'Rented To',
+            value: rental.rentToPerson.split(' ').first,
+          ),
+          Container(
+            width: 1,
+            height: 30,
+            color: Colors.grey[300],
+          ),
+          _buildQuickInfoItem(
+            icon: Icons.payments,
+            label: 'Amount',
+            value: '₹${rental.totalAmount.toStringAsFixed(0)}',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickInfoItem({required IconData icon, required String label, required String value}) {
+    return Column(
+      children: [
+        Icon(icon, size: 18, color: const Color(0xFF6C757D)),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            color: Color(0xFF6C757D),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  String _calculateDuration() {
+    final duration = rental.rentToDate.difference(rental.rentFromDate);
+    final days = duration.inDays;
+    if (days == 0) {
+      return '1 day';
+    } else if (days == 1) {
+      return '$days day';
+    } else {
+      return '$days days';
+    }
+  }
+
+  Widget _buildPaymentCard() {
+    final amount = rental.isCancelled && rental.cancellationAmount != null
+        ? rental.cancellationAmount!
+        : rental.totalAmount;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -446,42 +311,275 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
             offset: const Offset(0, 2),
           ),
         ],
+        border: Border.all(color: Colors.grey[100]!),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const SizedBox(width: 12),
               Text(
-                title,
+                rental.isCancelled ? 'CANCELLATION FEE' : 'PAYMENT',
                 style: const TextStyle(
-                  fontSize: 18,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF6C757D),
+                  letterSpacing: 0.5,
+                ),
+              ),
+              if (rental.isCommissionBased)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE3F2FD),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'COMMISSION',
+                    style: TextStyle(
+                      color: Color(0xFF1976D2),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '₹',
+                style: TextStyle(
+                  fontSize: 24,
+                  color: rental.isCancelled ? Colors.red : const Color(0xFF28A745),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                amount.toStringAsFixed(0),
+                style: TextStyle(
+                  fontSize: 36,
+                  color: rental.isCancelled ? Colors.red : const Color(0xFF28A745),
                   fontWeight: FontWeight.bold,
+                  height: 1,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          ...children,
+          if (rental.isCancelled && rental.cancellationAmount != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                'Original: ₹${rental.totalAmount.toStringAsFixed(0)}',
+                style: const TextStyle(
+                  color: Color(0xFF6C757D),
+                  fontSize: 12,
+                  decoration: TextDecoration.lineThrough,
+                ),
+              ),
+            ),
+          if (!rental.isCancelled) ...[
+            const SizedBox(height: 12),
+            const Row(
+              children: [
+                Icon(Icons.info_outline, size: 14, color: Color(0xFF6C757D)),
+                SizedBox(width: 6),
+                Text(
+                  'Total rental amount',
+                  style: TextStyle(
+                    color: Color(0xFF6C757D),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
+  Widget _buildRentalPeriodCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: Colors.grey[100]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'RENTAL PERIOD',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF6C757D),
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildTimelineItem(
+            icon: Icons.play_arrow_rounded,
+            title: 'Pick-up',
+            date: rental.rentFromDate,
+            color: const Color(0xFF28A745),
+          ),
+          _buildTimelineConnector(),
+          _buildTimelineItem(
+            icon: Icons.stop_rounded,
+            title: 'Scheduled Return',
+            date: rental.rentToDate,
+            color: const Color(0xFFFFC107),
+          ),
+          if (rental.actualReturnDate != null) ...[
+            _buildTimelineConnector(),
+            _buildTimelineItem(
+              icon: Icons.check_circle_rounded,
+              title: 'Actual Return',
+              date: rental.actualReturnDate!,
+              color: rental.actualReturnDate!.isAfter(rental.rentToDate)
+                  ? Colors.orange
+                  : const Color(0xFF28A745),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimelineItem({
+    required IconData icon,
+    required String title,
+    required DateTime date,
+    required Color color,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: Colors.grey[600]),
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: color, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                DateFormat('EEE, MMM dd, yyyy').format(date),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                DateFormat('hh:mm a').format(date),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF6C757D),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimelineConnector() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 15, top: 8, bottom: 8),
+      child: Container(
+        width: 2,
+        height: 20,
+        color: Colors.grey[300],
+      ),
+    );
+  }
+
+  Widget _buildCustomerCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: Colors.grey[100]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.person_outline, size: 16, color: Color(0xFF6C757D)),
+              SizedBox(width: 8),
+              Text(
+                'CUSTOMER INFORMATION',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF6C757D),
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildCustomerInfoRow(Icons.badge, 'Name', rental.rentToPerson),
+          if (rental.contactNumber != null && rental.contactNumber!.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _buildCustomerInfoRow(Icons.phone, 'Phone', rental.contactNumber!),
+          ],
+          if (rental.address != null && rental.address!.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _buildCustomerInfoRow(Icons.location_on, 'Address', rental.address!),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCustomerInfoRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: const Color(0xFF6C757D)),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -489,9 +587,9 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
             children: [
               Text(
                 label,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 12,
-                  color: Colors.grey[600],
+                  color: Color(0xFF6C757D),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -499,8 +597,9 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
               Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
+                  color: Colors.black,
                 ),
               ),
             ],
@@ -510,49 +609,209 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
     );
   }
 
-  Widget _buildTimelineItem(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            shape: BoxShape.circle,
+  Widget _buildDocumentCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
-          child: Icon(icon, color: color, size: 20),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        ],
+        border: Border.all(color: Colors.grey[100]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
             children: [
+              Icon(Icons.description_outlined, size: 16, color: Color(0xFF6C757D)),
+              SizedBox(width: 8),
               Text(
-                label,
+                'DOCUMENTS',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey[600],
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 15,
                   fontWeight: FontWeight.w600,
+                  color: Color(0xFF6C757D),
+                  letterSpacing: 0.5,
                 ),
               ),
             ],
           ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          InkWell(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => DocumentPreviewPage(
+                    filePath: rental.documentPath!,
+                    fileName: path.basename(rental.documentPath!),
+                  ),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F9FA),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE9ECEF)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 5,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      _getDocumentIcon(rental.documentPath!),
+                      color: const Color(0xFF1976D2),
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          path.basename(rental.documentPath!),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: Colors.black,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Tap to view document',
+                          style: TextStyle(
+                            color: Color(0xFF6C757D),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right,
+                      color: Color(0xFF6C757D), size: 20),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
+  }
+
+  Widget _buildMetaInfo() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Rental created on ${DateFormat('MMM dd, yyyy at hh:mm a').format(rental.createdAt)}',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: DateTime.now().isAfter(rental.rentToDate)
+            ? () => _showCompleteRentalDialog(context)
+            : null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 0,
+          disabledBackgroundColor: Colors.grey[300],
+        ),
+        icon: const Icon(Icons.check_circle_outline, size: 20),
+        label: const Text(
+          'Complete Rental',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Map<String, dynamic> _getStatusConfig() {
+    if (rental.isCancelled) {
+      return {
+        'color': Colors.red,
+        'icon': Icons.cancel_outlined,
+        'text': 'Cancelled',
+      };
+    }
+
+    switch (rental.status) {
+      case RentalStatus.ongoing:
+        return {
+          'color': Colors.green,
+          'icon': Icons.play_circle_outline,
+          'text': 'Active',
+        };
+      case RentalStatus.upcoming:
+        return {
+          'color': Colors.orange,
+          'icon': Icons.schedule,
+          'text': 'Upcoming',
+        };
+      case RentalStatus.overdue:
+        return {
+          'color': Colors.red,
+          'icon': Icons.warning_amber_rounded,
+          'text': 'Overdue',
+        };
+      case RentalStatus.completed:
+        return {
+          'color': Colors.grey,
+          'icon': Icons.check_circle_outline,
+          'text': 'Completed',
+        };
+    }
   }
 
   IconData _getDocumentIcon(String filePath) {
@@ -574,55 +833,131 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
 
   Future<void> _showCompleteRentalDialog(BuildContext context) async {
     DateTime selectedDate = DateTime.now();
-    // Default to rentToDate if not yet passed, otherwise use current time
     if (DateTime.now().isAfter(rental.rentToDate)) {
       selectedDate = DateTime.now();
     } else {
       selectedDate = rental.rentToDate;
     }
 
-    await showDialog(
+    await showModalBottomSheet(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) {
-          // Calculate amount dynamically based on selectedDate
-          double finalAmount = rental.totalAmount;
-          double? overtimeCharge;
-          int? overtimeHours;
-          
-          if (selectedDate.isAfter(rental.rentToDate)) {
-            // Calculate overtime in hours
-            final overtimeDuration = selectedDate.difference(rental.rentToDate);
-            overtimeHours = overtimeDuration.inHours + (overtimeDuration.inMinutes % 60 > 0 ? 1 : 0);
-            
-            // Calculate daily rate (approximate from total amount and days)
-            final rentalDuration = rental.rentToDate.difference(rental.rentFromDate);
-            final rentalDays = rentalDuration.inDays + (rentalDuration.inHours % 24 > 0 ? 1 : 0);
-            final dailyRate = rentalDays > 0 ? rental.totalAmount / rentalDays : rental.totalAmount;
-            
-            // Calculate overtime charge (proportional to daily rate)
-            overtimeCharge = (dailyRate / 24) * overtimeHours;
-            finalAmount = rental.totalAmount + overtimeCharge;
-          }
-          
-          return AlertDialog(
-            title: const Text('Complete Rental'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => _buildCompleteRentalSheet(selectedDate),
+    );
+  }
+
+  Widget _buildCompleteRentalSheet(DateTime initialDate) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Complete Rental',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Confirm the actual return date and time for ${rental.vehicleNumber}',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 24),
+          _buildDateTimeSelector(initialDate),
+          const SizedBox(height: 24),
+          _buildAmountSummary(initialDate),
+          const SizedBox(height: 24),
+          _buildActionButtons(initialDate),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateTimeSelector(DateTime initialDate) {
+    return StatefulBuilder(
+      builder: (context, setState) {
+        DateTime selectedDate = initialDate;
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              const Row(
                 children: [
-                  const Text('Please confirm the return date and time:'),
-                  const SizedBox(height: 16),
-                  InkWell(
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: selectedDate,
-                        firstDate: rental.rentFromDate,
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      if (date != null) {
+                  Icon(Icons.calendar_today, size: 18, color: Color(0xFF6C757D)),
+                  SizedBox(width: 8),
+                  Text('Return Date & Time',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate,
+                          firstDate: rental.rentFromDate,
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (date != null) {
+                          final time = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.fromDateTime(selectedDate),
+                          );
+                          if (time != null) {
+                            setState(() {
+                              selectedDate = DateTime(
+                                date.year,
+                                date.month,
+                                date.day,
+                                time.hour,
+                                time.minute,
+                              );
+                            });
+                          }
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              DateFormat('MMM dd, yyyy').format(selectedDate),
+                              style: const TextStyle(fontWeight: FontWeight.w500),
+                            ),
+                            Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () async {
                         final time = await showTimePicker(
                           context: context,
                           initialTime: TimeOfDay.fromDateTime(selectedDate),
@@ -630,133 +965,188 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
                         if (time != null) {
                           setState(() {
                             selectedDate = DateTime(
-                              date.year,
-                              date.month,
-                              date.day,
+                              selectedDate.year,
+                              selectedDate.month,
+                              selectedDate.day,
                               time.hour,
                               time.minute,
                             );
                           });
                         }
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(DateFormat('dd MMM yyyy, hh:mm a').format(selectedDate)),
-                          const Icon(Icons.calendar_today),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Amount breakdown
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Original Amount:'),
-                            Text('₹${rental.totalAmount.toStringAsFixed(0)}'),
-                          ],
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        if (overtimeCharge != null && overtimeCharge! > 0) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Overtime Charge (${overtimeHours}h):',
-                                style: TextStyle(color: Colors.red[700]),
-                              ),
-                              Text(
-                                '+₹${overtimeCharge!.toStringAsFixed(0)}',
-                                style: TextStyle(
-                                  color: Colors.red[700],
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                        const Divider(height: 16),
-                        Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
-                              'Total Amount:',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
                             Text(
-                              '₹${finalAmount.toStringAsFixed(0)}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.green,
-                              ),
+                              DateFormat('hh:mm a').format(selectedDate),
+                              style: const TextStyle(fontWeight: FontWeight.w500),
                             ),
+                            Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
                           ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  final updatedRental = Rental(
-                    id: rental.id,
-                    carId: rental.carId,
-                    vehicleNumber: rental.vehicleNumber,
-                    model: rental.model,
-                    year: rental.year,
-                    rentToPerson: rental.rentToPerson,
-                    contactNumber: rental.contactNumber,
-                    address: rental.address,
-                    rentFromDate: rental.rentFromDate,
-                    rentToDate: rental.rentToDate,
-                    totalAmount: finalAmount,
-                    imagePath: rental.imagePath,
-                    documentPath: rental.documentPath,
-                    createdAt: rental.createdAt,
-                    actualReturnDate: selectedDate,
-                    isReturnApproved: true,
-                    isCommissionBased: rental.isCommissionBased,
-                  );
-                  context.read<RentalBloc>().add(UpdateRentalEvent(updatedRental));
-                  Navigator.pop(context);
-                  // Reload rentals and pop the details page
-                  context.read<RentalBloc>().add(LoadRentals());
-                  Navigator.pop(context);
-                },
-                child: const Text('Complete'),
-              ),
             ],
-          );
-        },
-      ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAmountSummary(DateTime selectedDate) {
+    return StatefulBuilder(
+      builder: (context, setState) {
+        double finalAmount = rental.totalAmount;
+        double? overtimeCharge;
+        int? overtimeHours;
+
+        if (selectedDate.isAfter(rental.rentToDate)) {
+          final overtimeDuration = selectedDate.difference(rental.rentToDate);
+          overtimeHours = overtimeDuration.inHours +
+              (overtimeDuration.inMinutes % 60 > 0 ? 1 : 0);
+
+          final rentalDuration = rental.rentToDate.difference(rental.rentFromDate);
+          final rentalDays = rentalDuration.inDays +
+              (rentalDuration.inHours % 24 > 0 ? 1 : 0);
+          final dailyRate = rentalDays > 0 ? rental.totalAmount / rentalDays : rental.totalAmount;
+
+          overtimeCharge = (dailyRate / 24) * overtimeHours!;
+          finalAmount = rental.totalAmount + overtimeCharge!;
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F9FA),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              _buildAmountRow('Original Amount', rental.totalAmount),
+              if (overtimeCharge != null && overtimeCharge! > 0) ...[
+                const SizedBox(height: 8),
+                _buildAmountRow(
+                  'Overtime Charge (${overtimeHours}h)',
+                  overtimeCharge!,
+                  isPositive: true,
+                  color: Colors.orange,
+                ),
+              ],
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              _buildAmountRow('Total Amount', finalAmount, isTotal: true),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAmountRow(String label, double amount,
+      {bool isTotal = false, bool isPositive = false, Color? color}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: color ?? Colors.grey[600],
+            fontSize: isTotal ? 15 : 14,
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        Text(
+          '${isPositive ? '+' : ''}₹${amount.toStringAsFixed(0)}',
+          style: TextStyle(
+            color: color ?? (isTotal ? Colors.black : Colors.grey[600]),
+            fontSize: isTotal ? 18 : 14,
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons(DateTime selectedDate) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: () => Navigator.pop(context),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Cancel'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: () {
+              double finalAmount = rental.totalAmount;
+              if (selectedDate.isAfter(rental.rentToDate)) {
+                final overtimeDuration = selectedDate.difference(rental.rentToDate);
+                final overtimeHours = overtimeDuration.inHours +
+                    (overtimeDuration.inMinutes % 60 > 0 ? 1 : 0);
+
+                final rentalDuration = rental.rentToDate.difference(rental.rentFromDate);
+                final rentalDays = rentalDuration.inDays +
+                    (rentalDuration.inHours % 24 > 0 ? 1 : 0);
+                final dailyRate = rentalDays > 0 ? rental.totalAmount / rentalDays : rental.totalAmount;
+
+                final overtimeCharge = (dailyRate / 24) * overtimeHours;
+                finalAmount = rental.totalAmount + overtimeCharge;
+              }
+
+              final updatedRental = Rental(
+                id: rental.id,
+                carId: rental.carId,
+                vehicleNumber: rental.vehicleNumber,
+                model: rental.model,
+                year: rental.year,
+                rentToPerson: rental.rentToPerson,
+                contactNumber: rental.contactNumber,
+                address: rental.address,
+                rentFromDate: rental.rentFromDate,
+                rentToDate: rental.rentToDate,
+                totalAmount: finalAmount,
+                imagePath: rental.imagePath,
+                documentPath: rental.documentPath,
+                createdAt: rental.createdAt,
+                actualReturnDate: selectedDate,
+                isReturnApproved: true,
+                isCommissionBased: rental.isCommissionBased,
+              );
+              context.read<RentalBloc>().add(UpdateRentalEvent(updatedRental));
+              Navigator.pop(context);
+              context.read<RentalBloc>().add(LoadRentals());
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Complete Rental'),
+          ),
+        ),
+      ],
     );
   }
 }

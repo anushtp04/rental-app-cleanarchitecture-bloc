@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../domain/entities/rental.dart';
 import '../bloc/rental/rental_bloc.dart';
+import '../bloc/car/car_bloc.dart';
 import 'available_cars_page.dart';
 import '../widgets/rental_tile.dart';
 
@@ -18,6 +19,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     context.read<RentalBloc>().add(LoadRentals());
+    context.read<CarBloc>().add(LoadCars());
   }
 
   @override
@@ -25,22 +27,12 @@ class _HomePageState extends State<HomePage> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    // Get time-based greeting
-    final hour = DateTime.now().hour;
-    String greeting;
-    if (hour < 12) {
-      greeting = 'Good Morning';
-    } else if (hour < 17) {
-      greeting = 'Good Afternoon';
-    } else {
-      greeting = 'Good Evening';
-    }
-
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: Colors.grey[50], // Light background for modern feel
       body: RefreshIndicator(
         onRefresh: () async {
           context.read<RentalBloc>().add(LoadRentals());
+          context.read<CarBloc>().add(LoadCars());
         },
         child: CustomScrollView(
           slivers: [
@@ -48,88 +40,64 @@ class _HomePageState extends State<HomePage> {
               floating: true,
               pinned: true,
               expandedHeight: 100,
-              backgroundColor: theme.scaffoldBackgroundColor,
+              toolbarHeight: 64,
+              backgroundColor: Colors.grey[50],
               surfaceTintColor: Colors.transparent,
               flexibleSpace: FlexibleSpaceBar(
-                titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                titlePadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 centerTitle: false,
-                title: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            greeting,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
-                              fontSize: 14,
-                            ),
-                          ),
-                          Text(
-                            'Admin Dashboard',
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: colorScheme.primary.withOpacity(0.2),
-                          width: 2,
+                title: const SafeArea(
+                  bottom: false,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Welcome Back',
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      child: CircleAvatar(
-                        radius: 20,
-                        backgroundColor: colorScheme.primaryContainer,
-                        child: Icon(
-                          Icons.person_rounded,
-                          color: colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.all(20.0),
+                padding: const EdgeInsets.all(24.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _buildStatsSection(context),
+                    const SizedBox(height: 32),
                     _buildQuickActions(context),
                     const SizedBox(height: 32),
                     _buildOvertimeRentalsSection(context),
                     const SizedBox(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
-                          'Recent Rentals',
-                          style: theme.textTheme.titleLarge?.copyWith(
+                        const Text(
+                          'Recent Activity',
+                          style: TextStyle(
+                            fontSize: 20,
                             fontWeight: FontWeight.bold,
+                            color: Colors.black87,
                           ),
                         ),
                         TextButton(
-                          onPressed: () {
-                            context.pushNamed('all-rentals');
-                          },
-                          style: TextButton.styleFrom(
-                            foregroundColor: colorScheme.primary,
-                          ),
+                          onPressed: () => context.pushNamed('all-rentals'),
                           child: const Text('View All'),
                         ),
                       ],
                     ),
+                    const SizedBox(height: 16),
                     _buildRecentRentalsList(context),
+                    const SizedBox(height: 80), // Bottom padding
                   ],
                 ),
               ),
@@ -140,48 +108,139 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildQuickActions(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+  Widget _buildStatsSection(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: BlocBuilder<CarBloc, CarState>(
+            builder: (context, state) {
+              int carCount = 0;
+              if (state is CarLoaded) {
+                carCount = state.cars.length;
+              }
+              return _buildStatCard(
+                context,
+                title: 'Total Cars',
+                value: carCount.toString(),
+                icon: Icons.directions_car_filled,
+                color: Colors.blue,
+              );
+            },
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: BlocBuilder<RentalBloc, RentalState>(
+            builder: (context, state) {
+              int activeRentals = 0;
+              if (state is RentalLoaded) {
+                activeRentals = state.rentals
+                    .where((r) => (r.status == RentalStatus.ongoing || r.status == RentalStatus.overdue) && !r.isCancelled)
+                    .length;
+              }
+              return _buildStatCard(
+                context,
+                title: 'Active Rentals',
+                value: activeRentals.toString(),
+                icon: Icons.key,
+                color: Colors.orange,
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
 
+  Widget _buildStatCard(
+    BuildContext context, {
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[500],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActions(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Quick Actions',
-          style: theme.textTheme.titleMedium?.copyWith(
+          style: TextStyle(
+            fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: theme.textTheme.titleMedium?.color?.withOpacity(0.8),
+            color: Colors.black87,
           ),
         ),
         const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
-              child: _buildDashboardCard(
+              child: _buildActionCard(
                 context,
-                title: 'Available Cars',
-                icon: Icons.directions_car_filled_rounded,
-                color: Colors.orange,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const AvailableCarsPage(),
-                    ),
-                  );
-                },
+                title: 'Add New Car',
+                icon: Icons.add,
+                color: Colors.black,
+                onTap: () => context.push('/add-car'),
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: _buildDashboardCard(
+              child: _buildActionCard(
                 context,
-                title: 'Add Rental',
-                icon: Icons.add_circle_rounded,
-                color: colorScheme.primary,
-                onTap: () {
-                  context.pushNamed('add-rental');
-                },
+                title: 'New Rental',
+                icon: Icons.receipt_long,
+                color: Colors.green,
+                onTap: () => context.pushNamed('add-rental'),
               ),
             ),
           ],
@@ -190,58 +249,43 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildDashboardCard(
+  Widget _buildActionCard(
     BuildContext context, {
     required String title,
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
   }) {
-    final theme = Theme.of(context);
-    
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          height: 110,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: theme.cardTheme.color,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: theme.dividerColor.withOpacity(0.1),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: color.withOpacity(0.08),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
               ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, size: 24, color: color),
-              ),
-              Text(
-                title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -251,64 +295,59 @@ class _HomePageState extends State<HomePage> {
     return BlocBuilder<RentalBloc, RentalState>(
       builder: (context, state) {
         if (state is RentalLoaded) {
-          final now = DateTime.now();
-          final overtimeRentals = state.rentals.where((rental) {
-            return !rental.isCancelled &&
-                !rental.isReturnApproved &&
-                rental.status != RentalStatus.completed &&
-                now.isAfter(rental.rentToDate);
+          final overdueRentals = state.rentals.where((rental) {
+            return !rental.isCancelled && rental.status == RentalStatus.overdue;
           }).toList();
 
-          if (overtimeRentals.isEmpty) {
+          if (overdueRentals.isEmpty) {
             return const SizedBox.shrink();
           }
 
-          overtimeRentals.sort((a, b) => b.rentToDate.compareTo(a.rentToDate));
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.errorContainer.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.error.withOpacity(0.2),
+          return Container(
+            margin: const EdgeInsets.only(bottom: 24),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.red[50],
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.red[100]!),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red[100],
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.warning_rounded, color: Colors.red[700], size: 20),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Attention Needed',
+                        style: TextStyle(
+                          color: Colors.red[900],
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${overdueRentals.length} rentals are overdue',
+                        style: TextStyle(
+                          color: Colors.red[700],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.warning_amber_rounded,
-                      color: Theme.of(context).colorScheme.error,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Attention Needed',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: Theme.of(context).colorScheme.error,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                          Text(
-                            '${overtimeRentals.length} rentals are overdue',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Theme.of(context).colorScheme.error.withOpacity(0.8),
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                Icon(Icons.arrow_forward_ios, size: 16, color: Colors.red[300]),
+              ],
+            ),
           );
         }
         return const SizedBox.shrink();
@@ -324,25 +363,16 @@ class _HomePageState extends State<HomePage> {
         } else if (state is RentalLoaded) {
           if (state.rentals.isEmpty) {
             return Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.no_crash_outlined,
-                      size: 48,
-                      color: Theme.of(context).disabledColor.withOpacity(0.5),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No rentals yet',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Theme.of(context).disabledColor,
-                          ),
-                    ),
-                  ],
-                ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.assignment_outlined, size: 48, color: Colors.grey[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No rentals yet',
+                    style: TextStyle(color: Colors.grey[400], fontSize: 16),
+                  ),
+                ],
               ),
             );
           }
@@ -350,10 +380,12 @@ class _HomePageState extends State<HomePage> {
             ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
           final recentRentals = sortedRentals.take(5).toList();
 
-          return Column(children: List.generate(recentRentals.length, (index) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 5),
-            child: RentalTile(rental: recentRentals[index]),
-          )));
+          return Column(
+            children: recentRentals.map((rental) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: RentalTile(rental: rental),
+            )).toList(),
+          );
         } else if (state is RentalError) {
           return Center(child: Text('Error: ${state.message}'));
         }

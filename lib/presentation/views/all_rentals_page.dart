@@ -39,11 +39,7 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
       // Category filter
       if (_selectedFilter != 'All') {
         if (_selectedFilter == 'Active' && rental.status != RentalStatus.ongoing) return false;
-        if (_selectedFilter == 'Overdue') {
-          final isOverdue = rental.status == RentalStatus.ongoing && 
-              DateTime.now().isAfter(rental.rentToDate);
-          if (!isOverdue) return false;
-        }
+        if (_selectedFilter == 'Overdue' && rental.status != RentalStatus.overdue) return false;
         if (_selectedFilter == 'Completed' && rental.status != RentalStatus.completed) return false;
         if (_selectedFilter == 'Upcoming' && rental.status != RentalStatus.upcoming) return false;
       }
@@ -330,17 +326,12 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
                   }
 
                   // Categorize rentals
-                  // Categorize rentals
                   final overdueRentals = filteredRentals
-                      .where((r) => r.status == RentalStatus.ongoing && 
-                          !r.isCancelled && 
-                          DateTime.now().isAfter(r.rentToDate))
+                      .where((r) => r.status == RentalStatus.overdue && !r.isCancelled)
                       .toList();
 
                   final activeRentals = filteredRentals
-                      .where((r) => r.status == RentalStatus.ongoing && 
-                          !r.isCancelled && 
-                          !DateTime.now().isAfter(r.rentToDate))
+                      .where((r) => r.status == RentalStatus.ongoing && !r.isCancelled)
                       .toList();
 
                   final upcomingRentals = filteredRentals
@@ -461,9 +452,7 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
   }
 
   Widget _buildRentalCard(BuildContext context, Rental rental) {
-    final canCancel = rental.status == RentalStatus.ongoing && 
-                      !rental.isCancelled && 
-                      DateTime.now().isBefore(rental.rentToDate);
+    final canCancel = rental.status == RentalStatus.ongoing && !rental.isCancelled;
     final canDelete = rental.status == RentalStatus.upcoming && !rental.isCancelled;
 
     // If can't cancel or delete, show regular card

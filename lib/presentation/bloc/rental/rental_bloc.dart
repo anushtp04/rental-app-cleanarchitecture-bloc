@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
+
 import '../../../domain/entities/rental.dart';
 import '../../../domain/usecases/get_all_rentals.dart';
 import '../../../domain/usecases/create_rental.dart';
@@ -17,6 +18,8 @@ class RentalBloc extends Bloc<RentalEvent, RentalState> {
   final DeleteRental deleteRental;
   final FilterRentals filterRentals;
 
+
+
   RentalBloc({
     required this.getAllRentals,
     required this.createRental,
@@ -30,13 +33,17 @@ class RentalBloc extends Bloc<RentalEvent, RentalState> {
     on<DeleteRentalEvent>(_onDeleteRental);
     on<FilterRentalsEvent>(_onFilterRentals);
     on<ClearFilters>(_onClearFilters);
+
   }
+
+
 
   Future<void> _onLoadRentals(LoadRentals event, Emitter<RentalState> emit) async {
     emit(RentalLoading());
     try {
       final rentals = await getAllRentals();
       emit(RentalLoaded(rentals: rentals));
+
     } catch (e) {
       emit(RentalError(message: e.toString()));
     }

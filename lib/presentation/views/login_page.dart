@@ -193,7 +193,7 @@ class _LoginPageState extends State<LoginPage> {
                     
                     // Info Text
                     Text(
-                      'Note: New users must be created from Firebase Console',
+                      'Note: New users must be created from Supabase Dashboard',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 12,

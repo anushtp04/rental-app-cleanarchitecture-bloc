@@ -28,6 +28,11 @@ class RentalItem extends StatelessWidget {
         statusIcon = Icons.schedule;
         statusText = 'Upcoming';
         break;
+      case RentalStatus.overdue:
+        statusColor = Colors.red;
+        statusIcon = Icons.warning_amber_rounded;
+        statusText = 'Overdue';
+        break;
       case RentalStatus.completed:
         statusColor = Colors.grey;
         statusIcon = Icons.check_circle;

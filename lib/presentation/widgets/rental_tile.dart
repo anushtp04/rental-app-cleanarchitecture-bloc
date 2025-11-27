@@ -27,31 +27,27 @@ class RentalTile extends StatelessWidget {
       statusText = 'Cancelled';
       statusIcon = Icons.cancel_outlined;
     } else {
-      final isOverdue = rental.status == RentalStatus.ongoing && 
-          DateTime.now().isAfter(rental.rentToDate);
-
-      if (isOverdue) {
-        statusColor = Colors.red;
-        statusText = 'Overdue';
-        statusIcon = Icons.warning_amber_rounded;
-      } else {
-        switch (rental.status) {
-          case RentalStatus.ongoing:
-            statusColor = Colors.green; // Distinct active color
-            statusText = 'Active';
-            statusIcon = Icons.directions_car_filled_rounded;
-            break;
-          case RentalStatus.upcoming:
-            statusColor = Colors.orange;
-            statusText = 'Upcoming';
-            statusIcon = Icons.calendar_today_rounded;
-            break;
-          case RentalStatus.completed:
-            statusColor = Colors.grey;
-            statusText = 'Completed';
-            statusIcon = Icons.check_circle_outline_rounded;
-            break;
-        }
+      switch (rental.status) {
+        case RentalStatus.ongoing:
+          statusColor = Colors.green; // Distinct active color
+          statusText = 'Active';
+          statusIcon = Icons.directions_car_filled_rounded;
+          break;
+        case RentalStatus.upcoming:
+          statusColor = Colors.orange;
+          statusText = 'Upcoming';
+          statusIcon = Icons.calendar_today_rounded;
+          break;
+        case RentalStatus.overdue:
+          statusColor = Colors.red;
+          statusText = 'Overdue';
+          statusIcon = Icons.warning_amber_rounded;
+          break;
+        case RentalStatus.completed:
+          statusColor = Colors.grey;
+          statusText = 'Completed';
+          statusIcon = Icons.check_circle_outline_rounded;
+          break;
       }
     }
 

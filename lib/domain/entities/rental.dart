@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 enum RentalStatus {
   upcoming,
   ongoing,
+  overdue,
   completed,
 }
 
@@ -68,9 +69,11 @@ class Rental extends Equatable {
     // Don't auto-complete - rentals remain ongoing/upcoming until explicitly approved
     if (rentFromDate.isAfter(now)) {
       return RentalStatus.upcoming;
+    } else if (now.isAfter(rentToDate)) {
+      // Rental period has ended but not yet returned - it's overdue
+      return RentalStatus.overdue;
     } else {
-      // If rentFromDate has passed, it's ongoing (even if past due date)
-      // It will only be completed when isReturnApproved is true
+      // Rental is currently active (between from and to dates)
       return RentalStatus.ongoing;
     }
   }

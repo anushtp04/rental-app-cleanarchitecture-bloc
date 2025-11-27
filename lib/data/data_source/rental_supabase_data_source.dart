@@ -1,8 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/rental_model.dart';
-import '../../../core/service/firebase_auth_service.dart';
+import '../../core/service/supabase_auth_service.dart';
 
-abstract class RentalFirestoreDataSource {
+abstract class RentalSupabaseDataSource {
   Future<List<RentalModel>> getAllRentals();
   Future<RentalModel> getRentalById(String id);
   Future<void> cacheRental(RentalModel rental);
@@ -17,26 +17,28 @@ abstract class RentalFirestoreDataSource {
   });
 }
 
-class RentalFirestoreDataSourceImpl implements RentalFirestoreDataSource {
-  final FirebaseFirestore firestore;
-  final FirebaseAuthService authService;
+class RentalSupabaseDataSourceImpl implements RentalSupabaseDataSource {
+  final SupabaseClient supabase;
+  final SupabaseAuthService authService;
 
-  RentalFirestoreDataSourceImpl({
-    required this.firestore,
+  RentalSupabaseDataSourceImpl({
+    required this.supabase,
     required this.authService,
   });
 
-  String get _userId => authService.currentUser?.uid ?? '';
-
-  CollectionReference get _rentalsCollection =>
-      firestore.collection('users').doc(_userId).collection('rentals');
+  String get _userId => authService.currentUser?.id ?? '';
 
   @override
   Future<List<RentalModel>> getAllRentals() async {
     try {
-      final snapshot = await _rentalsCollection.orderBy('createdAt', descending: true).get();
-      return snapshot.docs
-          .map((doc) => RentalModel.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+      final response = await supabase
+          .from('rentals')
+          .select()
+          .eq('user_id', _userId)
+          .order('created_at', ascending: false);
+
+      return (response as List)
+          .map((json) => RentalModel.fromSupabase(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
       throw Exception('Failed to get rentals: $e');
@@ -46,12 +48,14 @@ class RentalFirestoreDataSourceImpl implements RentalFirestoreDataSource {
   @override
   Future<RentalModel> getRentalById(String id) async {
     try {
-      final doc = await _rentalsCollection.doc(id).get();
-      if (doc.exists) {
-        return RentalModel.fromFirestore(doc.data()! as Map<String, dynamic>, doc.id);
-      } else {
-        throw Exception('Rental not found');
-      }
+      final response = await supabase
+          .from('rentals')
+          .select()
+          .eq('id', id)
+          .eq('user_id', _userId)
+          .single();
+
+      return RentalModel.fromSupabase(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to get rental: $e');
     }
@@ -60,7 +64,10 @@ class RentalFirestoreDataSourceImpl implements RentalFirestoreDataSource {
   @override
   Future<void> cacheRental(RentalModel rental) async {
     try {
-      await _rentalsCollection.doc(rental.id).set(rental.toFirestore());
+      final rentalData = rental.toSupabase();
+      rentalData['user_id'] = _userId;
+      
+      await supabase.from('rentals').insert(rentalData);
     } catch (e) {
       throw Exception('Failed to add rental: $e');
     }
@@ -69,7 +76,11 @@ class RentalFirestoreDataSourceImpl implements RentalFirestoreDataSource {
   @override
   Future<void> updateCachedRental(RentalModel rental) async {
     try {
-      await _rentalsCollection.doc(rental.id).update(rental.toFirestore());
+      await supabase
+          .from('rentals')
+          .update(rental.toSupabase())
+          .eq('id', rental.id)
+          .eq('user_id', _userId);
     } catch (e) {
       throw Exception('Failed to update rental: $e');
     }
@@ -78,7 +89,11 @@ class RentalFirestoreDataSourceImpl implements RentalFirestoreDataSource {
   @override
   Future<void> deleteRental(String id) async {
     try {
-      await _rentalsCollection.doc(id).delete();
+      await supabase
+          .from('rentals')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', _userId);
     } catch (e) {
       throw Exception('Failed to delete rental: $e');
     }
@@ -87,12 +102,10 @@ class RentalFirestoreDataSourceImpl implements RentalFirestoreDataSource {
   @override
   Future<void> deleteAllRentals() async {
     try {
-      final snapshot = await _rentalsCollection.get();
-      final batch = firestore.batch();
-      for (var doc in snapshot.docs) {
-        batch.delete(doc.reference);
-      }
-      await batch.commit();
+      await supabase
+          .from('rentals')
+          .delete()
+          .eq('user_id', _userId);
     } catch (e) {
       throw Exception('Failed to delete all rentals: $e');
     }
@@ -106,19 +119,23 @@ class RentalFirestoreDataSourceImpl implements RentalFirestoreDataSource {
     String? ownerName,
   }) async {
     try {
-      Query query = _rentalsCollection;
+      var query = supabase
+          .from('rentals')
+          .select()
+          .eq('user_id', _userId);
 
       if (fromDate != null) {
-        query = query.where('rentFromDate', isGreaterThanOrEqualTo: Timestamp.fromDate(fromDate));
+        query = query.gte('rent_from_date', fromDate.toIso8601String());
       }
 
       if (toDate != null) {
-        query = query.where('rentToDate', isLessThanOrEqualTo: Timestamp.fromDate(toDate));
+        query = query.lte('rent_to_date', toDate.toIso8601String());
       }
 
-      final snapshot = await query.get();
-      List<RentalModel> rentals = snapshot.docs
-          .map((doc) => RentalModel.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+      final response = await query.order('created_at', ascending: false);
+      
+      List<RentalModel> rentals = (response as List)
+          .map((json) => RentalModel.fromSupabase(json as Map<String, dynamic>))
           .toList();
 
       // Client-side filtering for text fields
@@ -140,4 +157,3 @@ class RentalFirestoreDataSourceImpl implements RentalFirestoreDataSource {
     }
   }
 }
-

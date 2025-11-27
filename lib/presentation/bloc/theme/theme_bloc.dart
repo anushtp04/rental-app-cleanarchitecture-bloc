@@ -6,15 +6,15 @@ part 'theme_event.dart';
 part 'theme_state.dart';
 
 class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
-  ThemeBloc() : super(ThemeInitial()) {
-    on<LoadTheme>(_onLoadTheme);
+  ThemeBloc() : super(_getTheme()) {
     on<ToggleTheme>(_onToggleTheme);
   }
 
-  void _onLoadTheme(LoadTheme event, Emitter<ThemeState> emit) {
+
+  static ThemeState _getTheme() {
     final box = HiveHelper.themeBox;
     final isDark = box.get('isDark', defaultValue: false) as bool;
-    emit(ThemeLoaded(isDark: isDark));
+    return ThemeLoaded(isDark: isDark);
   }
 
   void _onToggleTheme(ToggleTheme event, Emitter<ThemeState> emit) {

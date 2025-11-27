@@ -1,5 +1,4 @@
 import 'package:hive/hive.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/entities/rental.dart';
 
 part 'rental_model.g.dart';
@@ -188,60 +187,60 @@ class RentalModel extends HiveObject {
     };
   }
 
-  // Firestore conversion methods
-  Map<String, dynamic> toFirestore() {
+  // Supabase conversion methods
+  Map<String, dynamic> toSupabase() {
     return {
       'id': id,
-      'vehicleNumber': vehicleNumber,
+      'vehicle_number': vehicleNumber,
       'model': model,
       'year': year,
-      'rentToPerson': rentToPerson,
-      'contactNumber': contactNumber,
+      'rent_to_person': rentToPerson,
+      'contact_number': contactNumber,
       'email': email,
       'address': address,
       'notes': notes,
-      'rentFromDate': rentFromDate,
-      'rentToDate': rentToDate,
-      'totalAmount': totalAmount,
-      'imagePath': imagePath,
-      'documentPath': documentPath,
-      'createdAt': createdAt,
-      'actualReturnDate': actualReturnDate,
-      'isReturnApproved': isReturnApproved,
-      'isCommissionBased': isCommissionBased,
-      'isCancelled': isCancelled,
-      'cancellationAmount': cancellationAmount,
-      'carId': carId,
+      'rent_from_date': rentFromDate.toIso8601String(),
+      'rent_to_date': rentToDate.toIso8601String(),
+      'total_amount': totalAmount,
+      'image_path': imagePath,
+      'document_path': documentPath,
+      'created_at': createdAt.toIso8601String(),
+      'actual_return_date': actualReturnDate?.toIso8601String(),
+      'is_return_approved': isReturnApproved,
+      'is_commission_based': isCommissionBased,
+      'is_cancelled': isCancelled,
+      'cancellation_amount': cancellationAmount,
+      'car_id': carId,
     };
   }
 
-  factory RentalModel.fromFirestore(Map<String, dynamic> map, String id) {
+  factory RentalModel.fromSupabase(Map<String, dynamic> map) {
     return RentalModel(
-      id: id,
-      vehicleNumber: map['vehicleNumber'] as String,
+      id: map['id'] as String,
+      vehicleNumber: map['vehicle_number'] as String,
       model: map['model'] as String,
       year: map['year'] as int,
-      rentToPerson: map['rentToPerson'] as String,
-      contactNumber: map['contactNumber'] as String?,
+      rentToPerson: map['rent_to_person'] as String,
+      contactNumber: map['contact_number'] as String?,
       email: map['email'] as String?,
       address: map['address'] as String?,
       notes: map['notes'] as String?,
-      rentFromDate: (map['rentFromDate'] as Timestamp).toDate(),
-      rentToDate: (map['rentToDate'] as Timestamp).toDate(),
-      totalAmount: (map['totalAmount'] as num).toDouble(),
-      imagePath: map['imagePath'] as String?,
-      documentPath: map['documentPath'] as String?,
-      createdAt: (map['createdAt'] as Timestamp).toDate(),
-      actualReturnDate: map['actualReturnDate'] != null
-          ? (map['actualReturnDate'] as Timestamp).toDate()
+      rentFromDate: DateTime.parse(map['rent_from_date'] as String),
+      rentToDate: DateTime.parse(map['rent_to_date'] as String),
+      totalAmount: (map['total_amount'] as num).toDouble(),
+      imagePath: map['image_path'] as String?,
+      documentPath: map['document_path'] as String?,
+      createdAt: DateTime.parse(map['created_at'] as String),
+      actualReturnDate: map['actual_return_date'] != null
+          ? DateTime.parse(map['actual_return_date'] as String)
           : null,
-      isReturnApproved: map['isReturnApproved'] as bool? ?? false,
-      isCommissionBased: map['isCommissionBased'] as bool? ?? false,
-      isCancelled: map['isCancelled'] as bool? ?? false,
-      cancellationAmount: map['cancellationAmount'] != null
-          ? (map['cancellationAmount'] as num).toDouble()
+      isReturnApproved: map['is_return_approved'] as bool? ?? false,
+      isCommissionBased: map['is_commission_based'] as bool? ?? false,
+      isCancelled: map['is_cancelled'] as bool? ?? false,
+      cancellationAmount: map['cancellation_amount'] != null
+          ? (map['cancellation_amount'] as num).toDouble()
           : null,
-      carId: map['carId'] as String?,
+      carId: map['car_id'] as String?,
     );
   }
 }

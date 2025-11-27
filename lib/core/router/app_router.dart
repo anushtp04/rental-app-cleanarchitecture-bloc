@@ -1,50 +1,55 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:async';
 import '../../presentation/views/home_page.dart';
 import '../../presentation/views/profile_page.dart';
 import '../../presentation/views/add_rental_page.dart';
 import '../../presentation/views/rental_details_page.dart';
 import '../../presentation/views/all_rentals_page.dart';
 import '../../presentation/views/login_page.dart';
+import '../../presentation/views/splash_page.dart';
 import '../../presentation/bloc/auth/auth_bloc.dart';
 import '../../core/di/injection_container.dart' as di;
 import '../../domain/entities/rental.dart';
+import '../../domain/entities/car.dart';
+import '../../presentation/views/add_car_page.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
-    initialLocation: '/home',
+    initialLocation: '/splash',
+    refreshListenable: GoRouterRefreshStream(di.sl<AuthBloc>().stream),
     redirect: (context, state) {
-      // Get auth bloc from context if available, otherwise check service locator
-      AuthBloc? authBloc;
-      try {
-        authBloc = context.read<AuthBloc>();
-      } catch (e) {
-        // If not in context, try service locator (for initial load)
-        try {
-          authBloc = di.sl<AuthBloc>();
-        } catch (e) {
-          // Auth bloc not available yet, allow navigation
-          return null;
-        }
+
+      final authState = context.read<AuthBloc>().state;
+      final isSplash = state.uri.path == '/splash';
+      final isLogin = state.uri.path == '/login';
+      
+      // If initial state, stay on splash
+      if (authState is AuthInitial) {
+        return isSplash ? null : '/splash';
       }
       
-      final authState = authBloc.state;
-      final isLoginRoute = state.uri.path == '/login';
+      final authenticated = authState is AuthAuthenticated;
       
       // If not authenticated and not on login page, redirect to login
-      if (authState is! AuthAuthenticated && !isLoginRoute) {
-        return '/login';
+      if (!authenticated) {
+        return isLogin ? null : '/login';
       }
       
-      // If authenticated and on login page, redirect to home
-      if (authState is AuthAuthenticated && isLoginRoute) {
+      // If authenticated and on login or splash page, redirect to home
+      if (authenticated && (isLogin || isSplash)) {
         return '/home';
       }
       
       return null; // No redirect needed
     },
     routes: [
+      GoRoute(
+        path: '/splash',
+        name: 'splash',
+        builder: (context, state) => const SplashPage(),
+      ),
       GoRoute(
         path: '/login',
         name: 'login',
@@ -88,8 +93,33 @@ class AppRouter {
           return RentalDetailsPage(rental: rental);
         },
       ),
+      GoRoute(
+        path: '/add-car',
+        name: 'add-car',
+        builder: (context, state) {
+          final car = state.extra as Car?;
+          return AddCarPage(car: car);
+        },
+      ),
     ],
   );
+}
+
+class GoRouterRefreshStream extends ChangeNotifier {
+  GoRouterRefreshStream(Stream<dynamic> stream) {
+    notifyListeners();
+    _subscription = stream.asBroadcastStream().listen(
+      (dynamic _) => notifyListeners(),
+    );
+  }
+
+  late final StreamSubscription<dynamic> _subscription;
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
 }
 
 class MainScaffold extends StatelessWidget {
