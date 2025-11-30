@@ -104,8 +104,10 @@ class _ProfilePageState extends State<ProfilePage> {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, authState) {
         String userEmail = 'user@example.com';
+        String userName = 'Admin User';
         if (authState is AuthAuthenticated) {
           userEmail = authState.email;
+          userName = authState.name;
         }
 
         return Container(
@@ -133,7 +135,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 child: Center(
                   child: Text(
-                    userEmail.isNotEmpty ? userEmail[0].toUpperCase() : 'A',
+                    userName.isNotEmpty ? userName[0].toUpperCase() : 'A',
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -149,9 +151,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   children: [
                     Row(
                       children: [
-                        const Text(
-                          'Admin User',
-                          style: TextStyle(
+                        Text(
+                          userName,
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             letterSpacing: -0.5,

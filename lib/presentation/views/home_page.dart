@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../domain/entities/rental.dart';
 import '../bloc/rental/rental_bloc.dart';
 import '../bloc/car/car_bloc.dart';
+import '../bloc/auth/auth_bloc.dart';
 import '../widgets/rental_tile.dart';
 
 class HomePage extends StatefulWidget {
@@ -43,19 +44,27 @@ class _HomePageState extends State<HomePage> {
               flexibleSpace: FlexibleSpaceBar(
                 titlePadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 centerTitle: false,
-                title: const SafeArea(
+                title: SafeArea(
                   bottom: false,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.end,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Welcome Back',
-                        style: TextStyle(
-                          color: Colors.black87,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      BlocBuilder<AuthBloc, AuthState>(
+                        builder: (context, state) {
+                          String name = 'Back';
+                          if (state is AuthAuthenticated) {
+                            name = state.name;
+                          }
+                          return Text(
+                            'Welcome $name',
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),

@@ -31,9 +31,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) {
     final user = _authService.currentUser;
     if (user != null) {
+      final name = user.userMetadata?['name'] as String? ?? 'User';
       emit(AuthAuthenticated(
         userId: user.id,
         email: user.email ?? '',
+        name: name,
       ));
     } else {
       emit(AuthUnauthenticated());
@@ -65,9 +67,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
       
       if (response.user != null) {
+        final name = response.user!.userMetadata?['name'] as String? ?? 'User';
         emit(AuthAuthenticated(
           userId: response.user!.id,
           email: response.user!.email ?? '',
+          name: name,
         ));
       } else {
         emit(const AuthError('Verification failed. Please try again.'));
