@@ -14,6 +14,8 @@ import '../../core/di/injection_container.dart' as di;
 import '../../domain/entities/rental.dart';
 import '../../domain/entities/car.dart';
 import '../../presentation/views/add_car_page.dart';
+import '../../presentation/views/available_cars_page.dart';
+import '../../presentation/views/car_details_page.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -101,6 +103,19 @@ class AppRouter {
           return AddCarPage(car: car);
         },
       ),
+      GoRoute(
+        path: '/available-cars',
+        name: 'available-cars',
+        builder: (context, state) => const AvailableCarsPage(),
+      ),
+      GoRoute(
+        path: '/car-details',
+        name: 'car-details',
+        builder: (context, state) {
+          final car = state.extra as Car;
+          return CarDetailsPage(car: car);
+        },
+      ),
     ],
   );
 }
@@ -146,7 +161,7 @@ class MainScaffold extends StatelessWidget {
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),

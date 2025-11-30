@@ -20,6 +20,7 @@ import '../../presentation/bloc/car/car_bloc.dart';
 import '../../presentation/bloc/theme/theme_bloc.dart';
 import '../../presentation/bloc/auth/auth_bloc.dart';
 import '../../core/service/supabase_auth_service.dart';
+import '../../core/service/supabase_storage_service.dart';
 
 final sl = GetIt.instance;
 
@@ -39,12 +40,14 @@ Future<void> init() async {
   // Services
   sl.registerLazySingleton<SupabaseAuthService>(() => SupabaseAuthService());
   sl.registerLazySingleton<SupabaseClient>(() => Supabase.instance.client);
+  sl.registerLazySingleton<SupabaseStorageService>(() => SupabaseStorageService(sl()));
 
   // Data Sources - Supabase
   sl.registerLazySingleton<RentalSupabaseDataSource>(
     () => RentalSupabaseDataSourceImpl(
       supabase: sl(),
       authService: sl(),
+      storageService: sl(),
     ),
   );
 
@@ -52,6 +55,7 @@ Future<void> init() async {
     () => CarSupabaseDataSourceImpl(
       supabase: sl(),
       authService: sl(),
+      storageService: sl(),
     ),
   );
 

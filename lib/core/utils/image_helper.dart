@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:uuid/uuid.dart';
@@ -43,6 +44,30 @@ class ImageHelper {
           '${appDir.path}/$fileName',
         );
         return savedImage.path;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Pick image using FilePicker with restricted file types (jpg, jpeg, png only)
+  /// This excludes webp and other unsupported formats
+  static Future<String?> pickImageWithFilePicker() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+        allowMultiple: false,
+      );
+
+      if (result != null && result.files.single.path != null) {
+        // Save to app directory
+        final appDir = await getApplicationDocumentsDirectory();
+        final file = File(result.files.single.path!);
+        final fileName = '${const Uuid().v4()}${path.extension(file.path)}';
+        final savedFile = await file.copy('${appDir.path}/$fileName');
+        return savedFile.path;
       }
       return null;
     } catch (e) {

@@ -93,7 +93,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
         icon: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             shape: BoxShape.circle,
           ),
           child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
@@ -106,7 +106,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.3),
+                color: Colors.black.withValues(alpha: 0.3),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.edit, color: Colors.white, size: 20),
@@ -136,19 +136,6 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
             ),
 
             // Dark Overlay for better text readability
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withOpacity(0.2),
-                    Colors.black.withOpacity(0.5),
-                  ],
-                ),
-              ),
-            ),
-
             // Vehicle Information Overlay
             Positioned(
               left: 20,
@@ -161,7 +148,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: statusConfig['color']!.withOpacity(0.9),
+                      color: statusConfig['color']!.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -306,7 +293,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -413,7 +400,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -474,7 +461,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: color, size: 18),
@@ -535,7 +522,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -618,7 +605,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -672,7 +659,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
                       borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),
                           blurRadius: 5,
                           offset: const Offset(0, 2),
                         ),
@@ -1019,8 +1006,8 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
               (rentalDuration.inHours % 24 > 0 ? 1 : 0);
           final dailyRate = rentalDays > 0 ? rental.totalAmount / rentalDays : rental.totalAmount;
 
-          overtimeCharge = (dailyRate / 24) * overtimeHours!;
-          finalAmount = rental.totalAmount + overtimeCharge!;
+          overtimeCharge = (dailyRate / 24) * overtimeHours;
+          finalAmount = rental.totalAmount + overtimeCharge;
         }
 
         return Container(
@@ -1032,11 +1019,11 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
           child: Column(
             children: [
               _buildAmountRow('Original Amount', rental.totalAmount),
-              if (overtimeCharge != null && overtimeCharge! > 0) ...[
+              if (overtimeCharge != null && overtimeCharge > 0) ...[
                 const SizedBox(height: 8),
                 _buildAmountRow(
                   'Overtime Charge (${overtimeHours}h)',
-                  overtimeCharge!,
+                  overtimeCharge,
                   isPositive: true,
                   color: Colors.orange,
                 ),

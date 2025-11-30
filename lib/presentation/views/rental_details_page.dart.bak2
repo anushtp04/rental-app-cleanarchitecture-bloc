@@ -1,0 +1,846 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:path/path.dart' as path;
+import '../../domain/entities/rental.dart';
+import '../bloc/rental/rental_bloc.dart';
+import '../widgets/document_preview_page.dart';
+import '../widgets/car_image_widget.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../core/di/injection_container.dart';
+import '../../core/service/supabase_storage_service.dart';
+
+class RentalDetailsPage extends StatefulWidget {
+  final Rental rental;
+
+  const RentalDetailsPage({super.key, required this.rental});
+
+  @override
+  State<RentalDetailsPage> createState() => _RentalDetailsPageState();
+}
+
+class _RentalDetailsPageState extends State<RentalDetailsPage> {
+  late Rental rental;
+
+  @override
+  void initState() {
+    super.initState();
+    rental = widget.rental;
+    context.read<RentalBloc>().stream.listen((state) {
+      if (state is RentalLoaded) {
+        final updatedRental = state.rentals.firstWhere(
+              (r) => r.id == rental.id,
+          orElse: () => rental,
+        );
+        if (updatedRental.id == rental.id && updatedRental != rental) {
+          setState(() {
+            rental = updatedRental;
+          });
+        }
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final statusConfig = _getStatusConfig();
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: CustomScrollView(
+        slivers: [
+          _buildAppBar(statusConfig),
+          SliverList(
+            delegate: SliverChildListDelegate([
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    _buildQuickInfoRow(),
+                    const SizedBox(height: 20),
+                    _buildPaymentCard(),
+                    const SizedBox(height: 16),
+                    _buildRentalPeriodCard(),
+                    const SizedBox(height: 16),
+                    _buildCustomerCard(),
+                    if (rental.documentPath != null) ...[
+                      const SizedBox(height: 16),
+                      _buildDocumentCard(),
+                    ],
+                    const SizedBox(height: 16),
+                    _buildMetaInfo(),
+                    if (rental.status != RentalStatus.completed && !rental.isCancelled) ...[
+                      const SizedBox(height: 24),
+                      _buildActionButton(),
+                    ],
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
+            ]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  SliverAppBar _buildAppBar(Map<String, dynamic> statusConfig) {
+    return SliverAppBar(
+      expandedHeight: 240,
+      floating: false,
+      pinned: true,
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      leading: IconButton(
+        icon: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.3),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+        ),
+        onPressed: () => Navigator.pop(context),
+      ),
+      actions: [
+        if (rental.status != RentalStatus.completed)
+          IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.edit, color: Colors.white, size: 20),
+            ),
+            onPressed: () async {
+              await context.pushNamed('add-rental', extra: rental);
+              if (mounted) {
+                context.read<RentalBloc>().add(LoadRentals());
+              }
+            },
+          ),
+      ],
+      flexibleSpace: FlexibleSpaceBar(
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Vehicle Image
+            CarImageWidget(
+              imagePath: rental.imagePath,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+            ),
+
+            // Dark Overlay for better text readability
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.2),
+                    Colors.black.withOpacity(0.5),
+                  ],
+                ),
+              ),
+            ),
+
+            // Vehicle Information Overlay
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: 20,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Status Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: statusConfig['color']!.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(statusConfig['icon'],
+                            color: Colors.white, size: 14),
+                        const SizedBox(width: 6),
+                        Text(
+                          statusConfig['text']!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Vehicle Number - Large and prominent
+                  Text(
+                    rental.vehicleNumber,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Model and Year
+                  Text(
+                    '${rental.model} • ${rental.year}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickInfoRow() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildQuickInfoItem(
+            icon: Icons.calendar_today,
+            label: 'Duration',
+            value: _calculateDuration(),
+          ),
+          Container(
+            width: 1,
+            height: 30,
+            color: Colors.grey[300],
+          ),
+          _buildQuickInfoItem(
+            icon: Icons.person,
+            label: 'Rented To',
+            value: rental.rentToPerson.split(' ').first,
+          ),
+          Container(
+            width: 1,
+            height: 30,
+            color: Colors.grey[300],
+          ),
+          _buildQuickInfoItem(
+            icon: Icons.payments,
+            label: 'Amount',
+            value: '₹${rental.totalAmount.toStringAsFixed(0)}',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickInfoItem({required IconData icon, required String label, required String value}) {
+    return Column(
+      children: [
+        Icon(icon, size: 18, color: const Color(0xFF6C757D)),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            color: Color(0xFF6C757D),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  String _calculateDuration() {
+    final duration = rental.rentToDate.difference(rental.rentFromDate);
+    final days = duration.inDays;
+    if (days == 0) {
+      return '1 day';
+    } else if (days == 1) {
+      return '$days day';
+    } else {
+      return '$days days';
+    }
+  }
+
+  Widget _buildPaymentCard() {
+    final amount = rental.isCancelled && rental.cancellationAmount != null
+        ? rental.cancellationAmount!
+        : rental.totalAmount;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: Colors.grey[100]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                rental.isCancelled ? 'CANCELLATION FEE' : 'PAYMENT',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF6C757D),
+                  letterSpacing: 0.5,
+                ),
+              ),
+              if (rental.isCommissionBased)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE3F2FD),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'COMMISSION',
+                    style: TextStyle(
+                      color: Color(0xFF1976D2),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '₹',
+                style: TextStyle(
+                  fontSize: 24,
+                  color: rental.isCancelled ? Colors.red : const Color(0xFF28A745),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                amount.toStringAsFixed(0),
+                style: TextStyle(
+                  fontSize: 36,
+                  color: rental.isCancelled ? Colors.red : const Color(0xFF28A745),
+                  fontWeight: FontWeight.bold,
+                  height: 1,
+                ),
+              ),
+            ],
+          ),
+          if (rental.isCancelled && rental.cancellationAmount != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                'Original: ₹${rental.totalAmount.toStringAsFixed(0)}',
+                style: const TextStyle(
+                  color: Color(0xFF6C757D),
+                  fontSize: 12,
+                  decoration: TextDecoration.lineThrough,
+                ),
+              ),
+            ),
+          if (!rental.isCancelled) ...[
+            const SizedBox(height: 12),
+            const Row(
+              children: [
+                Icon(Icons.info_outline, size: 14, color: Color(0xFF6C757D)),
+                SizedBox(width: 6),
+                Text(
+                  'Total rental amount',
+                  style: TextStyle(
+                    color: Color(0xFF6C757D),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRentalPeriodCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: Colors.grey[100]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'RENTAL PERIOD',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF6C757D),
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildTimelineItem(
+            icon: Icons.play_arrow_rounded,
+            title: 'Pick-up',
+            date: rental.rentFromDate,
+            color: const Color(0xFF28A745),
+          ),
+          _buildTimelineConnector(),
+          _buildTimelineItem(
+            icon: Icons.stop_rounded,
+            title: 'Scheduled Return',
+            date: rental.rentToDate,
+            color: const Color(0xFFFFC107),
+          ),
+          if (rental.actualReturnDate != null) ...[
+            _buildTimelineConnector(),
+            _buildTimelineItem(
+              icon: Icons.check_circle_rounded,
+              title: 'Actual Return',
+              date: rental.actualReturnDate!,
+              color: rental.actualReturnDate!.isAfter(rental.rentToDate)
+                  ? Colors.orange
+                  : const Color(0xFF28A745),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimelineItem({
+    required IconData icon,
+    required String title,
+    required DateTime date,
+    required Color color,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: color, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                DateFormat('EEE, MMM dd, yyyy').format(date),
+                style: const TextStyle(
+                  fontSize: 13,
+          'text': 'Upcoming',
+        };
+      case RentalStatus.overdue:
+        return {
+          'color': Colors.red,
+          'color': Colors.grey,
+          'icon': Icons.check_circle_outline,
+          'text': 'Completed',
+        };
+    }
+  }
+
+  IconData _getDocumentIcon(String filePath) {
+    final extension = path.extension(filePath).toLowerCase();
+    switch (extension) {
+      case '.pdf':
+        return Icons.picture_as_pdf;
+      case '.doc':
+      case '.docx':
+        return Icons.description;
+      case '.jpg':
+      case '.jpeg':
+      case '.png':
+        return Icons.image;
+      default:
+        return Icons.insert_drive_file;
+    }
+  }
+
+  Future<void> _showCompleteRentalDialog(BuildContext context) async {
+    DateTime selectedDate = DateTime.now();
+    if (DateTime.now().isAfter(rental.rentToDate)) {
+      selectedDate = DateTime.now();
+    } else {
+      selectedDate = rental.rentToDate;
+    }
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => _buildCompleteRentalSheet(selectedDate),
+    );
+  }
+
+  Widget _buildCompleteRentalSheet(DateTime initialDate) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Complete Rental',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Confirm the actual return date and time for ${rental.vehicleNumber}',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 24),
+          _buildDateTimeSelector(initialDate),
+          const SizedBox(height: 24),
+          _buildAmountSummary(initialDate),
+          const SizedBox(height: 24),
+          _buildActionButtons(initialDate),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateTimeSelector(DateTime initialDate) {
+    return StatefulBuilder(
+      builder: (context, setState) {
+        DateTime selectedDate = initialDate;
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.calendar_today, size: 18, color: Color(0xFF6C757D)),
+                  SizedBox(width: 8),
+                  Text('Return Date & Time',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate,
+                          firstDate: rental.rentFromDate,
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (date != null) {
+                          final time = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.fromDateTime(selectedDate),
+                          );
+                          if (time != null) {
+                            setState(() {
+                              selectedDate = DateTime(
+                                date.year,
+                                date.month,
+                                date.day,
+                                time.hour,
+                                time.minute,
+                              );
+                            });
+                          }
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              DateFormat('MMM dd, yyyy').format(selectedDate),
+                              style: const TextStyle(fontWeight: FontWeight.w500),
+                            ),
+                            Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () async {
+                        final time = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay.fromDateTime(selectedDate),
+                        );
+                        if (time != null) {
+                          setState(() {
+                            selectedDate = DateTime(
+                              selectedDate.year,
+                              selectedDate.month,
+                              selectedDate.day,
+                              time.hour,
+                              time.minute,
+                            );
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              DateFormat('hh:mm a').format(selectedDate),
+                              style: const TextStyle(fontWeight: FontWeight.w500),
+                            ),
+                            Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAmountSummary(DateTime selectedDate) {
+    return StatefulBuilder(
+      builder: (context, setState) {
+        double finalAmount = rental.totalAmount;
+        double? overtimeCharge;
+        int? overtimeHours;
+
+        if (selectedDate.isAfter(rental.rentToDate)) {
+          final overtimeDuration = selectedDate.difference(rental.rentToDate);
+          overtimeHours = overtimeDuration.inHours +
+              (overtimeDuration.inMinutes % 60 > 0 ? 1 : 0);
+
+          final rentalDuration = rental.rentToDate.difference(rental.rentFromDate);
+          final rentalDays = rentalDuration.inDays +
+              (rentalDuration.inHours % 24 > 0 ? 1 : 0);
+          final dailyRate = rentalDays > 0 ? rental.totalAmount / rentalDays : rental.totalAmount;
+
+          overtimeCharge = (dailyRate / 24) * overtimeHours!;
+          finalAmount = rental.totalAmount + overtimeCharge!;
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F9FA),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              _buildAmountRow('Original Amount', rental.totalAmount),
+              if (overtimeCharge != null && overtimeCharge! > 0) ...[
+                const SizedBox(height: 8),
+                _buildAmountRow(
+                  'Overtime Charge (${overtimeHours}h)',
+                  overtimeCharge!,
+                  isPositive: true,
+                  color: Colors.orange,
+                ),
+              ],
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              _buildAmountRow('Total Amount', finalAmount, isTotal: true),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAmountRow(String label, double amount,
+      {bool isTotal = false, bool isPositive = false, Color? color}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: color ?? Colors.grey[600],
+            fontSize: isTotal ? 15 : 14,
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        Text(
+          '${isPositive ? '+' : ''}₹${amount.toStringAsFixed(0)}',
+          style: TextStyle(
+            color: color ?? (isTotal ? Colors.black : Colors.grey[600]),
+            fontSize: isTotal ? 18 : 14,
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons(DateTime selectedDate) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: () => Navigator.pop(context),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Cancel'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: () {
+              double finalAmount = rental.totalAmount;
+              if (selectedDate.isAfter(rental.rentToDate)) {
+                final overtimeDuration = selectedDate.difference(rental.rentToDate);
+                final overtimeHours = overtimeDuration.inHours +
+                    (overtimeDuration.inMinutes % 60 > 0 ? 1 : 0);
+
+                final rentalDuration = rental.rentToDate.difference(rental.rentFromDate);
+                final rentalDays = rentalDuration.inDays +
+                    (rentalDuration.inHours % 24 > 0 ? 1 : 0);
+                final dailyRate = rentalDays > 0 ? rental.totalAmount / rentalDays : rental.totalAmount;
+
+                final overtimeCharge = (dailyRate / 24) * overtimeHours;
+                finalAmount = rental.totalAmount + overtimeCharge;
+              }
+
+              final updatedRental = Rental(
+                id: rental.id,
+                carId: rental.carId,
+                vehicleNumber: rental.vehicleNumber,
+                model: rental.model,
+                year: rental.year,
+                rentToPerson: rental.rentToPerson,
+                contactNumber: rental.contactNumber,
+                address: rental.address,
+                rentFromDate: rental.rentFromDate,
+                rentToDate: rental.rentToDate,
+                totalAmount: finalAmount,
+                imagePath: rental.imagePath,
+                documentPath: rental.documentPath,
+                createdAt: rental.createdAt,
+                actualReturnDate: selectedDate,
+                isReturnApproved: true,
+                isCommissionBased: rental.isCommissionBased,
+              );
+              context.read<RentalBloc>().add(UpdateRentalEvent(updatedRental));
+              Navigator.pop(context);
+              context.read<RentalBloc>().add(LoadRentals());
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Complete Rental'),
+          ),
+        ),
+      ],
+    );
+  }
+}

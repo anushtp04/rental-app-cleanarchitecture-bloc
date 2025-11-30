@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/rental_model.dart';
 import '../../core/service/supabase_auth_service.dart';
+import '../../core/service/supabase_storage_service.dart';
 
 abstract class RentalSupabaseDataSource {
   Future<List<RentalModel>> getAllRentals();
@@ -20,10 +21,12 @@ abstract class RentalSupabaseDataSource {
 class RentalSupabaseDataSourceImpl implements RentalSupabaseDataSource {
   final SupabaseClient supabase;
   final SupabaseAuthService authService;
+  final SupabaseStorageService storageService;
 
   RentalSupabaseDataSourceImpl({
     required this.supabase,
     required this.authService,
+    required this.storageService,
   });
 
   String get _userId => authService.currentUser?.id ?? '';
@@ -55,7 +58,7 @@ class RentalSupabaseDataSourceImpl implements RentalSupabaseDataSource {
           .eq('user_id', _userId)
           .single();
 
-      return RentalModel.fromSupabase(response as Map<String, dynamic>);
+      return RentalModel.fromSupabase(response);
     } catch (e) {
       throw Exception('Failed to get rental: $e');
     }
@@ -67,6 +70,18 @@ class RentalSupabaseDataSourceImpl implements RentalSupabaseDataSource {
       final rentalData = rental.toSupabase();
       rentalData['user_id'] = _userId;
       
+      // Upload image to cloud storage if local path exists
+      if (rental.imagePath != null && !storageService.isCloudUrl(rental.imagePath)) {
+        final cloudUrl = await storageService.uploadRentalImage(rental.imagePath!, rental.id);
+        rentalData['image_path'] = cloudUrl;
+      }
+      
+      // Upload document to cloud storage if local path exists
+      if (rental.documentPath != null && !storageService.isCloudUrl(rental.documentPath)) {
+        final cloudUrl = await storageService.uploadRentalDocument(rental.documentPath!, rental.id);
+        rentalData['document_path'] = cloudUrl;
+      }
+      
       await supabase.from('rentals').insert(rentalData);
     } catch (e) {
       throw Exception('Failed to add rental: $e');
@@ -76,9 +91,23 @@ class RentalSupabaseDataSourceImpl implements RentalSupabaseDataSource {
   @override
   Future<void> updateCachedRental(RentalModel rental) async {
     try {
+      final rentalData = rental.toSupabase();
+      
+      // Upload new image to cloud storage if local path exists
+      if (rental.imagePath != null && !storageService.isCloudUrl(rental.imagePath)) {
+        final cloudUrl = await storageService.uploadRentalImage(rental.imagePath!, rental.id);
+        rentalData['image_path'] = cloudUrl;
+      }
+      
+      // Upload new document to cloud storage if local path exists
+      if (rental.documentPath != null && !storageService.isCloudUrl(rental.documentPath)) {
+        final cloudUrl = await storageService.uploadRentalDocument(rental.documentPath!, rental.id);
+        rentalData['document_path'] = cloudUrl;
+      }
+      
       await supabase
           .from('rentals')
-          .update(rental.toSupabase())
+          .update(rentalData)
           .eq('id', rental.id)
           .eq('user_id', _userId);
     } catch (e) {
@@ -89,6 +118,10 @@ class RentalSupabaseDataSourceImpl implements RentalSupabaseDataSource {
   @override
   Future<void> deleteRental(String id) async {
     try {
+      // Delete files from storage first
+      await storageService.deleteRentalFiles(id);
+      
+      // Then delete from database
       await supabase
           .from('rentals')
           .delete()

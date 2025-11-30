@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
-import 'dart:io';
-import 'package:uuid/uuid.dart';
 import '../../domain/entities/car.dart';
 import '../../domain/entities/rental.dart';
 import '../bloc/car/car_bloc.dart';
 import '../bloc/rental/rental_bloc.dart';
-import '../../core/utils/image_helper.dart';
+import '../widgets/car_image_widget.dart';
 
 class AvailableCarsPage extends StatefulWidget {
   const AvailableCarsPage({super.key});
@@ -109,89 +107,83 @@ class _AvailableCarsPageState extends State<AvailableCarsPage> {
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
-        onTap: () => context.push('/add-car', extra: car),
+        onTap: () => context.push('/car-details', extra: car),
         borderRadius: BorderRadius.circular(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Car Image
-            Container(
-              height: 120,
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16)),
-                image: car.imagePath != null
-                    ? DecorationImage(
-                  image: FileImage(File(car.imagePath!)),
-                  fit: BoxFit.cover,
-                )
-                    : null,
-              ),
-              child: Stack(
-                children: [
-                  if (car.imagePath == null)
-                    Center(
-                      child: Icon(Icons.directions_car, size: 48,
-                          color: Colors.grey[400]),
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: SizedBox(
+                height: 120,
+                width: double.infinity,
+                child: Stack(
+                  children: [
+                    CarImageWidget(
+                      imagePath: car.imagePath,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: 120,
                     ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.6),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '${car.year}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (isRented)
                     Positioned(
                       top: 8,
-                      left: 8,
+                      right: 8,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.green,
+                          color: Colors.black.withValues(alpha: 0.6),
                           borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
                         ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.directions_car, color: Colors.white,
-                                size: 12),
-                            SizedBox(width: 4),
-                            Text(
-                              'Running',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          '${car.year}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
-                ],
+                    if (isRented)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.2),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.directions_car, color: Colors.white,
+                                  size: 12),
+                              SizedBox(width: 4),
+                              Text(
+                                'Running',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
             // Car Info
@@ -269,19 +261,6 @@ class _AvailableCarsPageState extends State<AvailableCarsPage> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildInfoChip(IconData icon, String label) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: Colors.grey[600]),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(color: Colors.grey[600], fontSize: 12),
-        ),
-      ],
     );
   }
 

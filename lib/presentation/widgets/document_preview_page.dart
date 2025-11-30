@@ -41,7 +41,7 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha: 0.5),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.close, color: Colors.white),
@@ -53,7 +53,7 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha: 0.5),
                 shape: BoxShape.circle,
               ),
               child: _isDownloading
@@ -152,7 +152,7 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
                             Text(
                               _getFileSize(widget.filePath),
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
+                                color: Colors.white.withValues(alpha: 0.7),
                                 fontSize: 14,
                               ),
                             ),
@@ -184,7 +184,7 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.5),
+                        color: Colors.black.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
@@ -192,14 +192,14 @@ class _DocumentPreviewPageState extends State<DocumentPreviewPage> {
                         children: [
                           Icon(
                             Icons.swipe_down,
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withValues(alpha: 0.7),
                             size: 20,
                           ),
                           const SizedBox(width: 8),
                           Text(
                             'Swipe down to close',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
+                              color: Colors.white.withValues(alpha: 0.7),
                               fontSize: 14,
                             ),
                           ),

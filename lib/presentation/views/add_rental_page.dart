@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
-import 'dart:io';
 import '../bloc/rental/rental_bloc.dart';
 import '../bloc/car/car_bloc.dart';
 import '../../domain/entities/rental.dart';
 import '../../domain/entities/car.dart';
 
 import '../../core/utils/document_helper.dart';
+import '../widgets/car_image_widget.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 import 'package:table_calendar/table_calendar.dart';
@@ -228,9 +228,9 @@ class _AddRentalPageState extends State<AddRentalPage> {
                                 color: Theme.of(context).primaryColor,
                                 shape: BoxShape.circle,
                               ),
-                              rangeHighlightColor: Theme.of(context).primaryColor.withOpacity(0.2),
+                              rangeHighlightColor: Theme.of(context).primaryColor.withValues(alpha: 0.2),
                               todayDecoration: BoxDecoration(
-                                color: Theme.of(context).primaryColor.withOpacity(0.5),
+                                color: Theme.of(context).primaryColor.withValues(alpha: 0.5),
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -397,7 +397,7 @@ class _AddRentalPageState extends State<AddRentalPage> {
         address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
         rentFromDate: startDateTime,
         rentToDate: endDateTime,
-        totalAmount: double.parse(_totalAmountController.text.trim()),
+        totalAmount: double.tryParse(_totalAmountController.text.trim()) ?? 0.0,
         imagePath: _imagePath,
         documentPath: _documentPath,
         createdAt: widget.rental?.createdAt ?? DateTime.now(),
@@ -471,7 +471,7 @@ class _AddRentalPageState extends State<AddRentalPage> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     elevation: 4,
-                    shadowColor: Theme.of(context).primaryColor.withOpacity(0.4),
+                    shadowColor: Theme.of(context).primaryColor.withValues(alpha: 0.4),
                   ),
                   child: Text(
                     widget.rental != null ? 'Update Rental' : 'Create Rental',
@@ -492,9 +492,9 @@ class _AddRentalPageState extends State<AddRentalPage> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.05),
+        color: Colors.blue.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.withOpacity(0.1)),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.1)),
       ),
       child: Row(
         children: [
@@ -523,7 +523,7 @@ class _AddRentalPageState extends State<AddRentalPage> {
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -615,7 +615,7 @@ class _AddRentalPageState extends State<AddRentalPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -758,6 +758,7 @@ class _AddRentalPageState extends State<AddRentalPage> {
           hint: 'Enter renter\'s name',
           icon: Icons.person_outline,
           validator: (v) => v?.trim().isEmpty == true ? 'Required' : null,
+          isRequired: true,
         ),
         const SizedBox(height: 16),
         _buildModernTextField(
@@ -789,8 +790,8 @@ class _AddRentalPageState extends State<AddRentalPage> {
           icon: Icons.currency_rupee,
           keyboardType: TextInputType.number,
           validator: (v) {
-            if (v?.trim().isEmpty == true) return 'Required';
-            if (double.tryParse(v!) == null) return 'Invalid amount';
+            // Optional now
+            if (v != null && v.isNotEmpty && double.tryParse(v) == null) return 'Invalid amount';
             return null;
           },
         ),
@@ -802,7 +803,7 @@ class _AddRentalPageState extends State<AddRentalPage> {
             border: Border.all(color: Colors.grey.shade200),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Colors.black.withValues(alpha: 0.6),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -823,7 +824,7 @@ class _AddRentalPageState extends State<AddRentalPage> {
                 _isCommissionBased = value;
               });
             },
-            activeColor: Colors.blue,
+            activeThumbColor: Colors.blue,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
         ),
@@ -836,13 +837,14 @@ class _AddRentalPageState extends State<AddRentalPage> {
   Widget _buildModernTextField({
     required TextEditingController controller,
     required String label,
+    required String hint,
     required IconData icon,
-    String? hint,
     TextInputType? keyboardType,
     int maxLines = 1,
     String? Function(String?)? validator,
     void Function(String)? onChanged,
     bool readOnly = false,
+    bool isRequired = false,
   }) {
     return TextFormField(
       controller: controller,
@@ -893,7 +895,7 @@ class _AddRentalPageState extends State<AddRentalPage> {
           border: Border.all(color: Colors.grey.shade200),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -1055,7 +1057,7 @@ class _AddRentalPageState extends State<AddRentalPage> {
                                 color: isRented ? Colors.red.shade100 : Colors.grey.shade200,
                               ),
                               borderRadius: BorderRadius.circular(16),
-                              color: isRented ? Colors.red.shade50.withOpacity(0.3) : Colors.white,
+                              color: isRented ? Colors.red.shade50.withValues(alpha: 0.3) : Colors.white,
                             ),
                             child: Row(
                               children: [
@@ -1065,16 +1067,18 @@ class _AddRentalPageState extends State<AddRentalPage> {
                                   decoration: BoxDecoration(
                                     color: Colors.grey.shade100,
                                     borderRadius: BorderRadius.circular(12),
-                                    image: car.imagePath != null
-                                        ? DecorationImage(
-                                            image: FileImage(File(car.imagePath!)),
-                                            fit: BoxFit.cover,
-                                          )
-                                        : null,
                                   ),
-                                  child: car.imagePath == null
-                                      ? Icon(Icons.directions_car, color: Colors.grey.shade400)
-                                      : null,
+                                  child: car.imagePath != null
+                                      ? ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: CarImageWidget(
+                                            imagePath: car.imagePath,
+                                            fit: BoxFit.cover,
+                                            width: 80,
+                                            height: 80,
+                                          ),
+                                        )
+                                      : Icon(Icons.directions_car, color: Colors.grey.shade400),
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(

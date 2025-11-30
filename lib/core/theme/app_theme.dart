@@ -138,7 +138,7 @@ class AppTheme {
         borderSide: const BorderSide(color: errorColor),
       ),
       labelStyle: TextStyle(color: textSecondaryLight),
-      hintStyle: TextStyle(color: textSecondaryLight.withOpacity(0.7)),
+      hintStyle: TextStyle(color: textSecondaryLight.withValues(alpha: 0.7)),
     ),
     iconTheme: const IconThemeData(
       color: textLight,
@@ -221,7 +221,7 @@ class AppTheme {
         borderSide: const BorderSide(color: errorColor),
       ),
       labelStyle: TextStyle(color: textSecondaryDark),
-      hintStyle: TextStyle(color: textSecondaryDark.withOpacity(0.7)),
+      hintStyle: TextStyle(color: textSecondaryDark.withValues(alpha: 0.7)),
     ),
     iconTheme: const IconThemeData(
       color: textDark,

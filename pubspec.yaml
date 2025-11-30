@@ -55,6 +55,9 @@ dependencies:
   image_picker: ^1.1.2
   path_provider: ^2.1.4
   
+  # Image compression
+  flutter_image_compress: ^2.3.0
+  
   # Date formatting
   intl: ^0.19.0
   

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
-import 'dart:io';
 import '../../domain/entities/car.dart';
 import '../bloc/car/car_bloc.dart';
 import '../../core/utils/image_helper.dart';
+import '../widgets/car_image_widget.dart';
 
 class AddCarPage extends StatefulWidget {
   final Car? car;
@@ -57,7 +57,7 @@ class _AddCarPageState extends State<AddCarPage> {
   }
 
   Future<void> _pickImage() async {
-    final path = await ImageHelper.pickImage();
+    final path = await ImageHelper.pickImageWithFilePicker();
     if (path != null) {
       setState(() => _imagePath = path);
     }
@@ -65,12 +65,8 @@ class _AddCarPageState extends State<AddCarPage> {
 
   void _save() {
     if (_formKey.currentState!.validate()) {
-      if (_imagePath == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select an image')),
-        );
-        return;
-      }
+      // Image is now optional
+      // if (_imagePath == null) { ... }
 
       final car = Car(
         id: widget.car?.id ?? const Uuid().v4(),
@@ -118,7 +114,7 @@ class _AddCarPageState extends State<AddCarPage> {
                 children: [
                   Expanded(child: _buildModernTextField(_makeController, 'Make', Icons.branding_watermark_outlined)),
                   const SizedBox(width: 16),
-                  Expanded(child: _buildModernTextField(_modelController, 'Model', Icons.directions_car_outlined)),
+                  Expanded(child: _buildModernTextField(_modelController, 'Model', Icons.directions_car_outlined, isRequired: true)),
                 ],
               ),
               const SizedBox(height: 16),
@@ -130,14 +126,14 @@ class _AddCarPageState extends State<AddCarPage> {
                 ],
               ),
               const SizedBox(height: 16),
-              _buildModernTextField(_numberController, 'Vehicle Number', Icons.confirmation_number_outlined),
+              _buildModernTextField(_numberController, 'Vehicle Number', Icons.confirmation_number_outlined, isRequired: true),
               const SizedBox(height: 16),
               _buildTransmissionSelector(),
               
               const SizedBox(height: 32),
               _buildSectionTitle('Pricing'),
               const SizedBox(height: 16),
-              _buildModernTextField(_priceController, 'Price per Day (₹)', Icons.currency_rupee, isNumber: true),
+              _buildModernTextField(_priceController, 'Price per Day (₹)', Icons.currency_rupee, isNumber: true, isRequired: true),
 
               const SizedBox(height: 32),
               _buildSectionTitle('Owner Details'),
@@ -195,12 +191,6 @@ class _AddCarPageState extends State<AddCarPage> {
           color: Colors.grey.shade50,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.grey.shade200),
-          image: _imagePath != null
-              ? DecorationImage(
-                  image: FileImage(File(_imagePath!)),
-                  fit: BoxFit.cover,
-                )
-              : null,
         ),
         child: _imagePath == null
             ? Column(
@@ -213,7 +203,7 @@ class _AddCarPageState extends State<AddCarPage> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -232,17 +222,30 @@ class _AddCarPageState extends State<AddCarPage> {
                   ),
                 ],
               )
-            : Container(
-                alignment: Alignment.bottomRight,
-                padding: const EdgeInsets.all(16),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
-                    shape: BoxShape.circle,
+            : Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: CarImageWidget(
+                      imagePath: _imagePath,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: 200,
+                    ),
                   ),
-                  child: const Icon(Icons.edit, color: Colors.white, size: 20),
-                ),
+                  Positioned(
+                    bottom: 16,
+                    right: 16,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.edit, color: Colors.white, size: 20),
+                    ),
+                  ),
+                ],
               ),
       ),
     );
@@ -254,16 +257,27 @@ class _AddCarPageState extends State<AddCarPage> {
     IconData icon, {
     bool isNumber = false,
     bool isPhone = false,
+    bool isRequired = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey.shade700,
+        RichText(
+          text: TextSpan(
+            text: label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade700,
+              fontFamily: Theme.of(context).textTheme.bodyMedium?.fontFamily,
+            ),
+            children: [
+              if (isRequired)
+                const TextSpan(
+                  text: ' *',
+                  style: TextStyle(color: Colors.red),
+                ),
+            ],
           ),
         ),
         const SizedBox(height: 8),
@@ -293,7 +307,12 @@ class _AddCarPageState extends State<AddCarPage> {
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
-          validator: (value) => value?.isEmpty == true ? 'Required' : null,
+          validator: (value) {
+            if (isRequired && (value == null || value.trim().isEmpty)) {
+              return 'Required';
+            }
+            return null;
+          },
         ),
       ],
     );
@@ -330,7 +349,7 @@ class _AddCarPageState extends State<AddCarPage> {
                       color: _selectedTransmission == TransmissionType.manual ? Colors.white : Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
                       boxShadow: _selectedTransmission == TransmissionType.manual
-                          ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))]
+                          ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]
                           : null,
                     ),
                     child: Row(
@@ -363,7 +382,7 @@ class _AddCarPageState extends State<AddCarPage> {
                       color: _selectedTransmission == TransmissionType.automatic ? Colors.white : Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
                       boxShadow: _selectedTransmission == TransmissionType.automatic
-                          ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))]
+                          ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]
                           : null,
                     ),
                     child: Row(

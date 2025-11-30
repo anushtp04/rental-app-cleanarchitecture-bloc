@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/car_model.dart';
 import '../../core/service/supabase_auth_service.dart';
+import '../../core/service/supabase_storage_service.dart';
 
 abstract class CarSupabaseDataSource {
   Future<List<CarModel>> getAllCars();
@@ -12,10 +13,12 @@ abstract class CarSupabaseDataSource {
 class CarSupabaseDataSourceImpl implements CarSupabaseDataSource {
   final SupabaseClient supabase;
   final SupabaseAuthService authService;
+  final SupabaseStorageService storageService;
 
   CarSupabaseDataSourceImpl({
     required this.supabase,
     required this.authService,
+    required this.storageService,
   });
 
   String get _userId => authService.currentUser?.id ?? '';
@@ -40,8 +43,19 @@ class CarSupabaseDataSourceImpl implements CarSupabaseDataSource {
   @override
   Future<void> addCar(CarModel car) async {
     try {
+      final userId = _userId;
+      if (userId.isEmpty) {
+        throw Exception('User not authenticated. Cannot add car.');
+      }
+
       final carData = car.toSupabase();
-      carData['user_id'] = _userId;
+      carData['user_id'] = userId;
+      
+      // Upload image to cloud storage if local path exists
+      if (car.imagePath != null && !storageService.isCloudUrl(car.imagePath)) {
+        final cloudUrl = await storageService.uploadCarImage(car.imagePath!, car.id);
+        carData['image_path'] = cloudUrl;
+      }
       
       await supabase.from('cars').insert(carData);
     } catch (e) {
@@ -52,9 +66,17 @@ class CarSupabaseDataSourceImpl implements CarSupabaseDataSource {
   @override
   Future<void> updateCar(CarModel car) async {
     try {
+      final carData = car.toSupabase();
+      
+      // Upload new image to cloud storage if local path exists
+      if (car.imagePath != null && !storageService.isCloudUrl(car.imagePath)) {
+        final cloudUrl = await storageService.uploadCarImage(car.imagePath!, car.id);
+        carData['image_path'] = cloudUrl;
+      }
+      
       await supabase
           .from('cars')
-          .update(car.toSupabase())
+          .update(carData)
           .eq('id', car.id)
           .eq('user_id', _userId);
     } catch (e) {
@@ -65,6 +87,10 @@ class CarSupabaseDataSourceImpl implements CarSupabaseDataSource {
   @override
   Future<void> deleteCar(String id) async {
     try {
+      // Delete image from storage first
+      await storageService.deleteCarImage(id);
+      
+      // Then delete from database
       await supabase
           .from('cars')
           .delete()

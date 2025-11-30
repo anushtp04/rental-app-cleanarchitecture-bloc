@@ -57,7 +57,7 @@ class RentalTile extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: theme.dividerColor.withOpacity(0.1),
+          color: theme.dividerColor.withValues(alpha: 0.1),
         ),
       ),
       color: theme.cardTheme.color,
@@ -78,7 +78,7 @@ class RentalTile extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
+                      color: statusColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -105,7 +105,7 @@ class RentalTile extends StatelessWidget {
                         Text(
                           rental.rentToPerson,
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                            color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -119,7 +119,7 @@ class RentalTile extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.1),
+                          color: statusColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -139,7 +139,7 @@ class RentalTile extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             margin: EdgeInsets.only(right: 5),
                             decoration: BoxDecoration(
-                              color: Colors.blue.withOpacity(0.1),
+                              color: Colors.blue.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: const Text(
@@ -192,7 +192,7 @@ class RentalTile extends StatelessWidget {
                   Container(
                     height: 24,
                     width: 1,
-                    color: theme.dividerColor.withOpacity(0.2),
+                    color: theme.dividerColor.withValues(alpha: 0.2),
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                   ),
                   Expanded(
@@ -224,7 +224,7 @@ class RentalTile extends StatelessWidget {
         Icon(
           icon,
           size: 14,
-          color: theme.textTheme.bodySmall?.color?.withOpacity(0.5),
+          color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.5),
         ),
         const SizedBox(width: 6),
         Column(
@@ -234,7 +234,7 @@ class RentalTile extends StatelessWidget {
               label,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontSize: 10,
-                color: theme.textTheme.bodySmall?.color?.withOpacity(0.5),
+                color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.5),
               ),
             ),
             Text(
