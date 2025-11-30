@@ -198,7 +198,7 @@ class _ProfilePageState extends State<ProfilePage> {
           return items.fold(0, (sum, item) {
             if (item.isCancelled && item.cancellationAmount != null) {
               return sum + item.cancellationAmount!;
-            } else if (item.status == RentalStatus.completed) {
+            } else if (item.status == RentalStatus.completed && item.isCommissionBased == false) {
               return sum + item.totalAmount;
             }
             return sum;
@@ -211,8 +211,34 @@ class _ProfilePageState extends State<ProfilePage> {
               .fold(0.0, (sum, item) => sum + item.totalAmount);
         }
 
-        final weekRentals = rentals.where((r) => r.createdAt.isAfter(weekStart)).toList();
-        final monthRentals = rentals.where((r) => r.createdAt.isAfter(monthStart)).toList();
+        // Filter rentals for week and month using same logic as graph
+        final weekRentals = rentals.where((r) {
+          // For completed rentals, use actualReturnDate
+          if (r.status == RentalStatus.completed && r.actualReturnDate != null) {
+            final returnDate = r.actualReturnDate!;
+            return returnDate.isAtSameMomentAs(weekStart) || returnDate.isAfter(weekStart);
+          }
+          // For cancelled rentals with cancellation amount, use createdAt
+          if (r.isCancelled && r.cancellationAmount != null) {
+            final createdDate = r.createdAt;
+            return createdDate.isAtSameMomentAs(weekStart) || createdDate.isAfter(weekStart);
+          }
+          return false;
+        }).toList();
+        
+        final monthRentals = rentals.where((r) {
+          // For completed rentals, use actualReturnDate
+          if (r.status == RentalStatus.completed && r.actualReturnDate != null) {
+            final returnDate = r.actualReturnDate!;
+            return returnDate.isAtSameMomentAs(monthStart) || returnDate.isAfter(monthStart);
+          }
+          // For cancelled rentals with cancellation amount, use createdAt
+          if (r.isCancelled && r.cancellationAmount != null) {
+            final createdDate = r.createdAt;
+            return createdDate.isAtSameMomentAs(monthStart) || createdDate.isAfter(monthStart);
+          }
+          return false;
+        }).toList();
 
         final weekRevenue = calculateRevenue(weekRentals);
         final weekCommission = calculateCommission(weekRentals);
@@ -231,10 +257,25 @@ class _ProfilePageState extends State<ProfilePage> {
 
         final List<DailyStats> weeklyData = List.generate(7, (index) {
           final day = now.subtract(Duration(days: 6 - index));
-          final dayStart = DateTime(day.year, day.month, day.day);
-          final dayEnd = dayStart.add(const Duration(days: 1));
-          final dayRentals = rentals.where((r) => 
-            r.createdAt.isAfter(dayStart) && r.createdAt.isBefore(dayEnd)).toList();
+          final dayDate = DateTime(day.year, day.month, day.day);
+          
+          // Filter rentals based on completion date for completed rentals, creation date for others
+          final dayRentals = rentals.where((r) {
+            // For completed rentals, use actualReturnDate
+            if (r.status == RentalStatus.completed && r.actualReturnDate != null) {
+              final returnDate = r.actualReturnDate!;
+              final returnDateOnly = DateTime(returnDate.year, returnDate.month, returnDate.day);
+              return returnDateOnly.isAtSameMomentAs(dayDate);
+            }
+            // For cancelled rentals with cancellation amount, use createdAt
+            if (r.isCancelled && r.cancellationAmount != null) {
+              final createdDate = r.createdAt;
+              final createdDateOnly = DateTime(createdDate.year, createdDate.month, createdDate.day);
+              return createdDateOnly.isAtSameMomentAs(dayDate);
+            }
+            return false;
+          }).toList();
+          
           return DailyStats(
             date: day,
             revenue: calculateRevenue(dayRentals),
@@ -252,6 +293,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 Expanded(child: _buildStatusChip('Overdue', overdueRentals.toString(), Colors.red, isAlert: overdueRentals > 0)),
               ],
             ),
+            const SizedBox(height: 20),
+
+            // Minimalist Graph
+            _RevenueGraph(data: weeklyData),
+
             const SizedBox(height: 16),
 
             // Compact 2x2 Stats Grid
@@ -276,10 +322,7 @@ class _ProfilePageState extends State<ProfilePage> {
             // Combined All Time Tile
             _buildCombinedAllTimeTile(totalRevenue, totalCommission),
             
-            const SizedBox(height: 20),
-            
-            // Minimalist Graph
-            _RevenueGraph(data: weeklyData),
+
           ],
         );
       },
@@ -505,7 +548,7 @@ class _RevenueGraphState extends State<_RevenueGraph> {
 
   @override
   Widget build(BuildContext context) {
-    final maxVal = widget.data.map((e) => e.revenue).reduce((curr, next) => curr > next ? curr : next);
+    final maxVal = widget.data.map((e) => e.revenue + e.commission).reduce((curr, next) => curr > next ? curr : next);
     final normalizedMax = maxVal > 0 ? maxVal : 1.0;
 
     return Container(
@@ -534,38 +577,32 @@ class _RevenueGraphState extends State<_RevenueGraph> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: List.generate(widget.data.length, (index) {
                 final item = widget.data[index];
-                final height = (item.revenue / normalizedMax) * 100;
+                final totalAmount = item.revenue + item.commission;
+                final height = (totalAmount / normalizedMax) * 100;
                 final dayLabel = DateFormat('E').format(item.date)[0];
+                final fullDateLabel = DateFormat('MMM dd').format(item.date);
                 final isTouched = touchedIndex == index;
 
                 return GestureDetector(
-                  onTapDown: (_) => setState(() => touchedIndex = index),
-                  onTapUp: (_) => setState(() => touchedIndex = null),
-                  onTapCancel: () => setState(() => touchedIndex = null),
+                  onLongPressStart: (_) => setState(() => touchedIndex = index),
+                  onLongPressEnd: (_) => setState(() => touchedIndex = null),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      // Labels
-                      if (item.revenue > 0)
+                      // Labels - show full format when touched, compact otherwise
+                      if (totalAmount > 0)
                       Column(
                         children: [
                           Text(
-                            _formatCompact(item.revenue),
-                            style: const TextStyle(
-                              fontSize: 9,
+                            isTouched 
+                              ? _formatFullCurrency(totalAmount)
+                              : _formatCompact(totalAmount),
+                            style: TextStyle(
+                              fontSize: isTouched ? 11 : 9,
                               fontWeight: FontWeight.bold,
-                              color: Colors.black87,
+                              color: isTouched ? Colors.black : Colors.black87,
                             ),
                           ),
-                          if (item.commission > 0)
-                            Text(
-                              '(${_formatCompact(item.commission)})',
-                              style: const TextStyle(
-                                fontSize: 8,
-                                color: Colors.purple,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
                         ],
                       ),
                       const SizedBox(height: 6),
@@ -590,9 +627,9 @@ class _RevenueGraphState extends State<_RevenueGraph> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        dayLabel,
+                        isTouched ? fullDateLabel : dayLabel,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: isTouched ? 9 : 10,
                           color: isTouched || index == 6 ? Colors.black : Colors.grey[400],
                           fontWeight: FontWeight.bold,
                         ),
@@ -613,5 +650,14 @@ class _RevenueGraphState extends State<_RevenueGraph> {
       return '${(value / 1000).toStringAsFixed(1)}k';
     }
     return value.toStringAsFixed(0);
+  }
+
+  String _formatFullCurrency(double value) {
+    final formatter = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
+    return formatter.format(value);
   }
 }

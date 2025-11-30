@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
+import 'package:intl/intl.dart';
 
 import 'package:table_calendar/table_calendar.dart';
 import '../../domain/entities/rental.dart';
@@ -17,8 +17,7 @@ class AllRentalsPage extends StatefulWidget {
 class _AllRentalsPageState extends State<AllRentalsPage> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedFilter = 'All';
-  DateTime? _dateFilterStart;
-  DateTime? _dateFilterEnd;
+  DateTime? _selectedDate;
 
   @override
   void dispose() {
@@ -44,13 +43,17 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
         if (_selectedFilter == 'Upcoming' && rental.status != RentalStatus.upcoming) return false;
       }
 
-      // Date range filter
-      if (_dateFilterStart != null && _dateFilterEnd != null) {
-        final rentalStart = rental.rentFromDate;
-        final rentalEnd = rental.rentToDate;
+      // Date filter
+      if (_selectedDate != null) {
+        final filterDate = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day);
+        final rentalStart = DateTime(rental.rentFromDate.year, rental.rentFromDate.month, rental.rentFromDate.day);
+        final rentalEnd = DateTime(rental.rentToDate.year, rental.rentToDate.month, rental.rentToDate.day);
         
-        final overlaps = rentalStart.isBefore(_dateFilterEnd!) && rentalEnd.isAfter(_dateFilterStart!);
-        if (!overlaps) return false;
+        // Check if selected date is within the rental period (inclusive)
+        final isWithinPeriod = (filterDate.isAtSameMomentAs(rentalStart) || filterDate.isAfter(rentalStart)) &&
+                             (filterDate.isAtSameMomentAs(rentalEnd) || filterDate.isBefore(rentalEnd));
+        
+        if (!isWithinPeriod) return false;
       }
 
       return true;
@@ -63,8 +66,8 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
   }
 
   Future<void> _showDateFilterModal() async {
-    DateTime? tempStart = _dateFilterStart;
-    DateTime? tempEnd = _dateFilterEnd;
+    DateTime focusedDay = _selectedDate ?? DateTime.now();
+    DateTime? tempDate = _selectedDate;
 
     await showModalBottomSheet(
       context: context,
@@ -84,23 +87,17 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       TextButton(
-                        onPressed: () {
-                          setModalState(() {
-                            tempStart = null;
-                            tempEnd = null;
-                          });
-                        },
-                        child: const Text('Clear'),
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
                       ),
                       const Text(
-                        'Filter by Date Range',
+                        'Select Date',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       TextButton(
                         onPressed: () {
                           setState(() {
-                            _dateFilterStart = tempStart;
-                            _dateFilterEnd = tempEnd;
+                            _selectedDate = tempDate;
                           });
                           Navigator.pop(context);
                         },
@@ -113,26 +110,27 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
                     child: TableCalendar(
                       firstDay: DateTime(2020),
                       lastDay: DateTime(2030),
-                      focusedDay: tempStart ?? DateTime.now(),
-                      rangeStartDay: tempStart,
-                      rangeEndDay: tempEnd,
-                      rangeSelectionMode: RangeSelectionMode.enforced,
-                      onRangeSelected: (start, end, focusedDay) {
+                      focusedDay: focusedDay,
+                      selectedDayPredicate: (day) => isSameDay(tempDate, day),
+                      onDaySelected: (selectedDay, newFocusedDay) {
                         setModalState(() {
-                          tempStart = start;
-                          tempEnd = end;
+                          tempDate = selectedDay;
+                          focusedDay = newFocusedDay;
                         });
                       },
                       calendarStyle: CalendarStyle(
-                        rangeHighlightColor: Theme.of(context).primaryColor.withValues(alpha: 0.2),
-                        rangeStartDecoration: BoxDecoration(
+                        selectedDecoration: BoxDecoration(
                           color: Theme.of(context).primaryColor,
                           shape: BoxShape.circle,
                         ),
-                        rangeEndDecoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor,
+                        todayDecoration: BoxDecoration(
+                          color: Theme.of(context).primaryColor.withValues(alpha: 0.5),
                           shape: BoxShape.circle,
                         ),
+                      ),
+                      headerStyle: const HeaderStyle(
+                        formatButtonVisible: false,
+                        titleCentered: true,
                       ),
                     ),
                   ),
@@ -251,6 +249,57 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
                   onChanged: (value) => setState(() {}),
                 ),
                 const SizedBox(height: 12),
+                
+                // Date Filter Button (Below Search)
+                InkWell(
+                  onTap: _showDateFilterModal,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _selectedDate != null ? Colors.blue : Colors.grey.shade300,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          size: 20,
+                          color: _selectedDate != null ? Colors.blue : Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _selectedDate != null
+                                ? DateFormat('MMM dd, yyyy').format(_selectedDate!)
+                                : 'Filter by Date',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: _selectedDate != null ? FontWeight.w600 : FontWeight.normal,
+                              color: _selectedDate != null ? Colors.black87 : Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                        if (_selectedDate != null)
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedDate = null;
+                              });
+                            },
+                            child: const Icon(Icons.close, size: 20, color: Colors.grey),
+                          )
+                        else
+                          Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
                 // Filter Chips
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -265,34 +314,6 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
                       _buildFilterChip('Upcoming'),
                       const SizedBox(width: 8),
                       _buildFilterChip('Completed'),
-                      const SizedBox(width: 8),
-                      // Date Filter Button
-                      FilterChip(
-                        label: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.calendar_today, size: 16),
-                            const SizedBox(width: 4),
-                            Text(_dateFilterStart != null && _dateFilterEnd != null
-                                ? 'Date Range'
-                                : 'Filter by Date'),
-                          ],
-                        ),
-                        selected: _dateFilterStart != null && _dateFilterEnd != null,
-                        onSelected: (selected) => _showDateFilterModal(),
-                      ),
-                      if (_dateFilterStart != null && _dateFilterEnd != null) ...[
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.close, size: 20),
-                          onPressed: () {
-                            setState(() {
-                              _dateFilterStart = null;
-                              _dateFilterEnd = null;
-                            });
-                          },
-                        ),
-                      ],
                     ],
                   ),
                 ),

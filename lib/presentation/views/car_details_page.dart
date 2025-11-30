@@ -395,7 +395,7 @@ class CarDetailsPage extends StatelessWidget {
                 imagePath: rental.imagePath,
                 documentPath: rental.documentPath,
                 createdAt: rental.createdAt,
-                actualReturnDate: rental.actualReturnDate,
+                actualReturnDate: DateTime.now(),
                 isReturnApproved: rental.isReturnApproved,
                 isCommissionBased: rental.isCommissionBased,
                 isCancelled: true,

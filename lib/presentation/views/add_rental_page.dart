@@ -1033,6 +1033,10 @@ class _AddRentalPageState extends State<AddRentalPage> {
                             if (rental.status == RentalStatus.completed) return false;
                             if (rental.isCancelled) return false;
 
+                            // If rental is overdue, car is always unavailable (not yet returned)
+                            if (rental.status == RentalStatus.overdue) return true;
+
+                            // For ongoing and upcoming rentals, check date overlap
                             final rStart = rental.rentFromDate;
                             final rEnd = rental.rentToDate;
                             final nStart = _rentFromDate!;

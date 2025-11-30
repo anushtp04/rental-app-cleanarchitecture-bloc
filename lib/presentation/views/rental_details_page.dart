@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 import '../../domain/entities/rental.dart';
 import '../bloc/rental/rental_bloc.dart';
 import '../widgets/document_preview_page.dart';
+import '../widgets/car_image_widget.dart';
 
 class RentalDetailsPage extends StatefulWidget {
   final Rental rental;
@@ -124,15 +124,11 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
           fit: StackFit.expand,
           children: [
             // Vehicle Image
-            rental.imagePath != null
-                ? Image.file(
-              File(rental.imagePath!),
+            CarImageWidget(
+              imagePath: rental.imagePath,
               fit: BoxFit.cover,
-            )
-                : Container(
-              color: const Color(0xFFF8F9FA),
-              child: const Icon(Icons.directions_car_outlined,
-                  size: 64, color: Color(0xFF6C757D)),
+              width: double.infinity,
+              height: 240,
             ),
 
             // Dark Overlay for better text readability
@@ -736,31 +732,50 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
   }
 
   Widget _buildActionButton() {
+    final isOverdue = rental.status == RentalStatus.overdue;
+    
     return SizedBox(
       width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: DateTime.now().isAfter(rental.rentToDate)
-            ? () => _showCompleteRentalDialog(context)
-            : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.black,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: 0,
-          disabledBackgroundColor: Colors.grey[300],
-        ),
-        icon: const Icon(Icons.check_circle_outline, size: 20),
-        label: const Text(
-          'Complete Rental',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
+      child: isOverdue
+          ? ElevatedButton.icon(
+              onPressed: () => _showCompleteRentalDialog(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              icon: const Icon(Icons.check_circle_outline, size: 20),
+              label: const Text(
+                'Complete Rental',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            )
+          : OutlinedButton.icon(
+              onPressed: () => _showCancelDialog(context),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                side: const BorderSide(color: Colors.red),
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.cancel, size: 20),
+              label: const Text(
+                'Cancel Rental',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
     );
   }
 
@@ -833,11 +848,149 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => _buildCompleteRentalSheet(selectedDate),
+      builder: (context) => _CompleteRentalSheet(
+        rental: rental,
+        initialDate: selectedDate,
+      ),
     );
   }
 
-  Widget _buildCompleteRentalSheet(DateTime initialDate) {
+  Future<void> _showCancelDialog(BuildContext context) async {
+    final amountController = TextEditingController();
+    
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cancel Rental'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to cancel the rental for ${rental.vehicleNumber}?',
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: amountController,
+              decoration: const InputDecoration(
+                labelText: 'Cancellation Amount',
+                hintText: 'Enter cancellation fee',
+                prefixText: '₹',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Original amount: ₹${rental.totalAmount.toStringAsFixed(0)}',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('No'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final amount = double.tryParse(amountController.text) ?? 0;
+              final updatedRental = Rental(
+                id: rental.id,
+                carId: rental.carId,
+                vehicleNumber: rental.vehicleNumber,
+                model: rental.model,
+                year: rental.year,
+                rentToPerson: rental.rentToPerson,
+                contactNumber: rental.contactNumber,
+                address: rental.address,
+                rentFromDate: rental.rentFromDate,
+                rentToDate: rental.rentToDate,
+                totalAmount: rental.totalAmount,
+                imagePath: rental.imagePath,
+                documentPath: rental.documentPath,
+                createdAt: rental.createdAt,
+                actualReturnDate: DateTime.now(),
+                isReturnApproved: rental.isReturnApproved,
+                isCommissionBased: rental.isCommissionBased,
+                isCancelled: true,
+                cancellationAmount: amount,
+              );
+              context.read<RentalBloc>().add(UpdateRentalEvent(updatedRental));
+              Navigator.pop(dialogContext);
+              // Reload rentals to update UI
+              context.read<RentalBloc>().add(LoadRentals());
+              // Go back to previous screen
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Cancel Rental'),
+          ),
+        ],
+      ),
+    );
+  }
+
+}
+
+// Stateful widget for Complete Rental Sheet to properly manage selected date state
+class _CompleteRentalSheet extends StatefulWidget {
+  final Rental rental;
+  final DateTime initialDate;
+
+  const _CompleteRentalSheet({
+    required this.rental,
+    required this.initialDate,
+  });
+
+  @override
+  State<_CompleteRentalSheet> createState() => _CompleteRentalSheetState();
+}
+
+class _CompleteRentalSheetState extends State<_CompleteRentalSheet> {
+  late DateTime selectedDate;
+  late TextEditingController overtimeChargeController;
+  bool isOvertimeManuallyEdited = false;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedDate = widget.initialDate;
+    overtimeChargeController = TextEditingController();
+    _updateOvertimeCharge();
+  }
+
+  @override
+  void dispose() {
+    overtimeChargeController.dispose();
+    super.dispose();
+  }
+
+  void _updateOvertimeCharge() {
+    if (!isOvertimeManuallyEdited && selectedDate.isAfter(widget.rental.rentToDate)) {
+      final overtimeDuration = selectedDate.difference(widget.rental.rentToDate);
+      final overtimeHours = overtimeDuration.inHours +
+          (overtimeDuration.inMinutes % 60 > 0 ? 1 : 0);
+
+      final rentalDuration = widget.rental.rentToDate.difference(widget.rental.rentFromDate);
+      final rentalDays = rentalDuration.inDays +
+          (rentalDuration.inHours % 24 > 0 ? 1 : 0);
+      final dailyRate = rentalDays > 0 ? widget.rental.totalAmount / rentalDays : widget.rental.totalAmount;
+
+      final calculatedCharge = (dailyRate / 24) * overtimeHours;
+      overtimeChargeController.text = calculatedCharge.toStringAsFixed(0);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -853,189 +1006,214 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Confirm the actual return date and time for ${rental.vehicleNumber}',
+            'Confirm the actual return date and time for ${widget.rental.vehicleNumber}',
             style: TextStyle(
               color: Colors.grey[600],
               fontSize: 14,
             ),
           ),
           const SizedBox(height: 24),
-          _buildDateTimeSelector(initialDate),
+          _buildDateTimeSelector(),
           const SizedBox(height: 24),
-          _buildAmountSummary(initialDate),
+          _buildAmountSummary(),
           const SizedBox(height: 24),
-          _buildActionButtons(initialDate),
+          _buildActionButtons(),
           const SizedBox(height: 16),
         ],
       ),
     );
   }
 
-  Widget _buildDateTimeSelector(DateTime initialDate) {
-    return StatefulBuilder(
-      builder: (context, setState) {
-        DateTime selectedDate = initialDate;
-
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey[300]!),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
+  Widget _buildDateTimeSelector() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          const Row(
             children: [
-              const Row(
-                children: [
-                  Icon(Icons.calendar_today, size: 18, color: Color(0xFF6C757D)),
-                  SizedBox(width: 8),
-                  Text('Return Date & Time',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: selectedDate,
-                          firstDate: rental.rentFromDate,
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
-                        );
-                        if (date != null) {
-                          final time = await showTimePicker(
-                            context: context,
-                            initialTime: TimeOfDay.fromDateTime(selectedDate),
+              Icon(Icons.calendar_today, size: 18, color: Color(0xFF6C757D)),
+              SizedBox(width: 8),
+              Text('Return Date & Time',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: selectedDate,
+                      firstDate: widget.rental.rentFromDate,
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (date != null) {
+                      final time = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.fromDateTime(selectedDate),
+                      );
+                      if (time != null) {
+                        setState(() {
+                          selectedDate = DateTime(
+                            date.year,
+                            date.month,
+                            date.day,
+                            time.hour,
+                            time.minute,
                           );
-                          if (time != null) {
-                            setState(() {
-                              selectedDate = DateTime(
-                                date.year,
-                                date.month,
-                                date.day,
-                                time.hour,
-                                time.minute,
-                              );
-                            });
-                          }
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[50],
-                          borderRadius: BorderRadius.circular(8),
+                          _updateOvertimeCharge();
+                        });
+                      }
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          DateFormat('MMM dd, yyyy').format(selectedDate),
+                          style: const TextStyle(fontWeight: FontWeight.w500),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              DateFormat('MMM dd, yyyy').format(selectedDate),
-                              style: const TextStyle(fontWeight: FontWeight.w500),
-                            ),
-                            Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                          ],
-                        ),
-                      ),
+                        Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: InkWell(
-                      onTap: () async {
-                        final time = await showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay.fromDateTime(selectedDate),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: InkWell(
+                  onTap: () async {
+                    final time = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay.fromDateTime(selectedDate),
+                    );
+                    if (time != null) {
+                      setState(() {
+                        selectedDate = DateTime(
+                          selectedDate.year,
+                          selectedDate.month,
+                          selectedDate.day,
+                          time.hour,
+                          time.minute,
                         );
-                        if (time != null) {
-                          setState(() {
-                            selectedDate = DateTime(
-                              selectedDate.year,
-                              selectedDate.month,
-                              selectedDate.day,
-                              time.hour,
-                              time.minute,
-                            );
-                          });
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[50],
-                          borderRadius: BorderRadius.circular(8),
+                        _updateOvertimeCharge();
+                      });
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          DateFormat('hh:mm a').format(selectedDate),
+                          style: const TextStyle(fontWeight: FontWeight.w500),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              DateFormat('hh:mm a').format(selectedDate),
-                              style: const TextStyle(fontWeight: FontWeight.w500),
-                            ),
-                            Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
-                          ],
-                        ),
-                      ),
+                        Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
             ],
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
-  Widget _buildAmountSummary(DateTime selectedDate) {
-    return StatefulBuilder(
-      builder: (context, setState) {
-        double finalAmount = rental.totalAmount;
-        double? overtimeCharge;
-        int? overtimeHours;
+  Widget _buildAmountSummary() {
+    double finalAmount = widget.rental.totalAmount;
+    int? overtimeHours;
+    bool showOvertime = selectedDate.isAfter(widget.rental.rentToDate);
 
-        if (selectedDate.isAfter(rental.rentToDate)) {
-          final overtimeDuration = selectedDate.difference(rental.rentToDate);
-          overtimeHours = overtimeDuration.inHours +
-              (overtimeDuration.inMinutes % 60 > 0 ? 1 : 0);
+    if (showOvertime) {
+      final overtimeDuration = selectedDate.difference(widget.rental.rentToDate);
+      overtimeHours = overtimeDuration.inHours +
+          (overtimeDuration.inMinutes % 60 > 0 ? 1 : 0);
+    }
 
-          final rentalDuration = rental.rentToDate.difference(rental.rentFromDate);
-          final rentalDays = rentalDuration.inDays +
-              (rentalDuration.inHours % 24 > 0 ? 1 : 0);
-          final dailyRate = rentalDays > 0 ? rental.totalAmount / rentalDays : rental.totalAmount;
+    // Get overtime charge from text field
+    final overtimeCharge = double.tryParse(overtimeChargeController.text) ?? 0;
+    finalAmount = widget.rental.totalAmount + overtimeCharge;
 
-          overtimeCharge = (dailyRate / 24) * overtimeHours;
-          finalAmount = rental.totalAmount + overtimeCharge;
-        }
-
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8F9FA),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            children: [
-              _buildAmountRow('Original Amount', rental.totalAmount),
-              if (overtimeCharge != null && overtimeCharge > 0) ...[
-                const SizedBox(height: 8),
-                _buildAmountRow(
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          _buildAmountRow('Original Amount', widget.rental.totalAmount),
+          if (showOvertime) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
                   'Overtime Charge (${overtimeHours}h)',
-                  overtimeCharge,
-                  isPositive: true,
-                  color: Colors.orange,
+                  style: const TextStyle(
+                    color: Colors.orange,
+                    fontSize: 14,
+                    fontWeight: FontWeight.normal,
+                  ),
+                ),
+                SizedBox(
+                  width: 120,
+                  child: TextField(
+                    controller: overtimeChargeController,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      color: Colors.orange,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    decoration: const InputDecoration(
+                      prefixText: '+₹',
+                      prefixStyle: TextStyle(
+                        color: Colors.orange,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      isDense: true,
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        isOvertimeManuallyEdited = true;
+                        // Trigger rebuild to update total amount
+                      });
+                    },
+                  ),
                 ),
               ],
-              const SizedBox(height: 12),
-              const Divider(height: 1),
-              const SizedBox(height: 12),
-              _buildAmountRow('Total Amount', finalAmount, isTotal: true),
-            ],
-          ),
-        );
-      },
+            ),
+          ],
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+          _buildAmountRow('Total Amount', finalAmount, isTotal: true),
+        ],
+      ),
     );
   }
 
@@ -1064,7 +1242,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
     );
   }
 
-  Widget _buildActionButtons(DateTime selectedDate) {
+  Widget _buildActionButtons() {
     return Row(
       children: [
         Expanded(
@@ -1083,39 +1261,28 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
         Expanded(
           child: ElevatedButton(
             onPressed: () {
-              double finalAmount = rental.totalAmount;
-              if (selectedDate.isAfter(rental.rentToDate)) {
-                final overtimeDuration = selectedDate.difference(rental.rentToDate);
-                final overtimeHours = overtimeDuration.inHours +
-                    (overtimeDuration.inMinutes % 60 > 0 ? 1 : 0);
-
-                final rentalDuration = rental.rentToDate.difference(rental.rentFromDate);
-                final rentalDays = rentalDuration.inDays +
-                    (rentalDuration.inHours % 24 > 0 ? 1 : 0);
-                final dailyRate = rentalDays > 0 ? rental.totalAmount / rentalDays : rental.totalAmount;
-
-                final overtimeCharge = (dailyRate / 24) * overtimeHours;
-                finalAmount = rental.totalAmount + overtimeCharge;
-              }
+              // Get the overtime charge from the text field (user may have edited it)
+              final overtimeCharge = double.tryParse(overtimeChargeController.text) ?? 0;
+              final finalAmount = widget.rental.totalAmount + overtimeCharge;
 
               final updatedRental = Rental(
-                id: rental.id,
-                carId: rental.carId,
-                vehicleNumber: rental.vehicleNumber,
-                model: rental.model,
-                year: rental.year,
-                rentToPerson: rental.rentToPerson,
-                contactNumber: rental.contactNumber,
-                address: rental.address,
-                rentFromDate: rental.rentFromDate,
-                rentToDate: rental.rentToDate,
+                id: widget.rental.id,
+                carId: widget.rental.carId,
+                vehicleNumber: widget.rental.vehicleNumber,
+                model: widget.rental.model,
+                year: widget.rental.year,
+                rentToPerson: widget.rental.rentToPerson,
+                contactNumber: widget.rental.contactNumber,
+                address: widget.rental.address,
+                rentFromDate: widget.rental.rentFromDate,
+                rentToDate: widget.rental.rentToDate,
                 totalAmount: finalAmount,
-                imagePath: rental.imagePath,
-                documentPath: rental.documentPath,
-                createdAt: rental.createdAt,
+                imagePath: widget.rental.imagePath,
+                documentPath: widget.rental.documentPath,
+                createdAt: widget.rental.createdAt,
                 actualReturnDate: selectedDate,
                 isReturnApproved: true,
-                isCommissionBased: rental.isCommissionBased,
+                isCommissionBased: widget.rental.isCommissionBased,
               );
               context.read<RentalBloc>().add(UpdateRentalEvent(updatedRental));
               Navigator.pop(context);
