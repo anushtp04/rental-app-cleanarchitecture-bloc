@@ -11,7 +11,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   AuthBloc(this._authService) : super(AuthInitial()) {
     on<AuthCheckRequested>(_onAuthCheckRequested);
-    on<AuthLoginRequested>(_onAuthLoginRequested);
+    on<AuthSendOtpRequested>(_onAuthSendOtpRequested);
+    on<AuthVerifyOtpRequested>(_onAuthVerifyOtpRequested);
     on<AuthLogoutRequested>(_onAuthLogoutRequested);
 
     // Listen to auth state changes
@@ -19,7 +20,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       if (authState.event == supabase.AuthChangeEvent.signedIn) {
         add(AuthCheckRequested());
       } else if (authState.event == supabase.AuthChangeEvent.signedOut) {
-        emit(AuthUnauthenticated());
+        add(AuthCheckRequested());
       }
     });
   }
@@ -39,15 +40,28 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  Future<void> _onAuthLoginRequested(
-    AuthLoginRequested event,
+  Future<void> _onAuthSendOtpRequested(
+    AuthSendOtpRequested event,
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
     try {
-      final response = await _authService.signInWithEmailAndPassword(
+      await _authService.signInWithOtp(email: event.email);
+      emit(AuthOtpSent(email: event.email));
+    } catch (e) {
+      emit(AuthError(e.toString()));
+    }
+  }
+
+  Future<void> _onAuthVerifyOtpRequested(
+    AuthVerifyOtpRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    try {
+      final response = await _authService.verifyOtp(
         email: event.email,
-        password: event.password,
+        token: event.token,
       );
       
       if (response.user != null) {
@@ -56,7 +70,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           email: response.user!.email ?? '',
         ));
       } else {
-        emit(const AuthError('Login failed. Please try again.'));
+        emit(const AuthError('Verification failed. Please try again.'));
       }
     } catch (e) {
       emit(AuthError(e.toString()));

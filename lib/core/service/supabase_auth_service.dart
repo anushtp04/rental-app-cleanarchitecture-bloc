@@ -9,17 +9,16 @@ class SupabaseAuthService {
   // Auth state stream
   Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
 
-  // Sign in with email and password
-  Future<AuthResponse> signInWithEmailAndPassword({
+  // Sign in with OTP
+  Future<void> signInWithOtp({
     required String email,
-    required String password,
   }) async {
     try {
-      final response = await _supabase.auth.signInWithPassword(
+      await _supabase.auth.signInWithOtp(
         email: email.trim(),
-        password: password,
+        emailRedirectTo: null,
+        shouldCreateUser: false, // Only allow existing users
       );
-      return response;
     } on AuthException catch (e) {
       throw _handleAuthException(e);
     } catch (e) {
@@ -27,15 +26,16 @@ class SupabaseAuthService {
     }
   }
 
-  // Sign up with email and password
-  Future<AuthResponse> signUpWithEmailAndPassword({
+  // Verify OTP
+  Future<AuthResponse> verifyOtp({
     required String email,
-    required String password,
+    required String token,
   }) async {
     try {
-      final response = await _supabase.auth.signUp(
+      final response = await _supabase.auth.verifyOTP(
         email: email.trim(),
-        password: password,
+        token: token,
+        type: OtpType.email,
       );
       return response;
     } on AuthException catch (e) {
