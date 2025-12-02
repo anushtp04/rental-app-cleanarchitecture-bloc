@@ -41,7 +41,7 @@ class RentalItem extends StatelessWidget {
     }
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       elevation: 1,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
@@ -52,7 +52,7 @@ class RentalItem extends StatelessWidget {
           context.pushNamed('rental-details', extra: rental);
         },
         child: Padding(
-          padding: const EdgeInsets.all(12.0),
+          padding: const EdgeInsets.all(8.0),
           child: Row(
             children: [
               // Image
@@ -61,21 +61,21 @@ class RentalItem extends StatelessWidget {
                 child: rental.imagePath != null
                     ? Image.file(
                         File(rental.imagePath!),
-                        width: 70,
-                        height: 70,
+                        width: 50,
+                        height: 50,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
-                            width: 70,
-                            height: 70,
+                            width: 50,
+                            height: 50,
                             color: Colors.grey[300],
                             child: const Icon(Icons.error, size: 32),
                           );
                         },
                       )
                     : Container(
-                        width: 70,
-                        height: 70,
+                        width: 50,
+                        height: 50,
                         color: Colors.grey[300],
                         child: const Icon(Icons.directions_car, size: 32),
                       ),
@@ -123,7 +123,7 @@ class RentalItem extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       '${rental.model} (${rental.year})',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 13),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
                     ),
                     const SizedBox(height: 3),
                     Row(
@@ -159,7 +159,7 @@ class RentalItem extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: Colors.green,
-                            fontSize: 15,
+                            fontSize: 14,
                           ),
                     ),
                   ],
@@ -228,4 +228,3 @@ class RentalItem extends StatelessWidget {
     );
   }
 }
-

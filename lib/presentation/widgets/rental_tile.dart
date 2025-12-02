@@ -68,7 +68,7 @@ class RentalTile extends StatelessWidget {
         },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -96,7 +96,8 @@ class RentalTile extends StatelessWidget {
                           '${rental.vehicleNumber} • ${rental.model}',
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
-                            height: 1.2,
+                            height: 1.1,
+                            fontSize: 14,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -106,6 +107,7 @@ class RentalTile extends StatelessWidget {
                           rental.rentToPerson,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                            fontSize: 12,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -156,6 +158,7 @@ class RentalTile extends StatelessWidget {
                             '₹${rental.totalAmount.toStringAsFixed(0)}',
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
+                              fontSize: 14,
                               decoration: rental.isCancelled ? TextDecoration.lineThrough : TextDecoration.none,
                               color: rental.isCancelled ? colorScheme.error : colorScheme.primary,
                             ),

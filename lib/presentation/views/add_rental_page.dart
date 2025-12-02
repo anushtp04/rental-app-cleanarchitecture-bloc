@@ -433,7 +433,7 @@ class _AddRentalPageState extends State<AddRentalPage> {
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -461,7 +461,7 @@ class _AddRentalPageState extends State<AddRentalPage> {
 
               const SizedBox(height: 32),
               SizedBox(
-                height: 56,
+                height: 48,
                 child: ElevatedButton(
                   onPressed: _saveRental,
                   style: ElevatedButton.styleFrom(
@@ -627,7 +627,7 @@ class _AddRentalPageState extends State<AddRentalPage> {
             onTap: _showDatePickerModal,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             child: Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
                   Container(
@@ -684,7 +684,7 @@ class _AddRentalPageState extends State<AddRentalPage> {
           ),
           const Divider(height: 1),
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             child: Row(
               children: [
                 Expanded(

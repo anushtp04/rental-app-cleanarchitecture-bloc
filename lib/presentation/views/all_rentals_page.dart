@@ -366,7 +366,7 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
                       .toList();
 
                   return ListView(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(12),
                     children: [
                       // Overdue Rentals
                       if (overdueRentals.isNotEmpty) ...[
@@ -436,7 +436,7 @@ class _AllRentalsPageState extends State<AllRentalsPage> {
         Text(
           title,
           style: const TextStyle(
-            fontSize: 20,
+            fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
         ),

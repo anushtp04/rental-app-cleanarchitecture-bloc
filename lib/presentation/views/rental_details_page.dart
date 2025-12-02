@@ -51,7 +51,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
           SliverList(
             delegate: SliverChildListDelegate([
               Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
                     _buildQuickInfoRow(),
@@ -84,7 +84,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
 
   SliverAppBar _buildAppBar(Map<String, dynamic> statusConfig) {
     return SliverAppBar(
-      expandedHeight: 240,
+      expandedHeight: 200,
       floating: false,
       pinned: true,
       backgroundColor: Colors.white,
@@ -128,7 +128,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
               imagePath: rental.imagePath,
               fit: BoxFit.cover,
               width: double.infinity,
-              height: 240,
+              height: 200,
             ),
 
             // Dark Overlay for better text readability
@@ -170,7 +170,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
                   Text(
                     rental.vehicleNumber,
                     style: const TextStyle(
-                      fontSize: 28,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                       letterSpacing: 1.5,
@@ -198,7 +198,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
 
   Widget _buildQuickInfoRow() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFFF8F9FA),
         borderRadius: BorderRadius.circular(12),
@@ -283,7 +283,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -346,7 +346,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
               Text(
                 amount.toStringAsFixed(0),
                 style: TextStyle(
-                  fontSize: 36,
+                  fontSize: 32,
                   color: rental.isCancelled ? Colors.red : const Color(0xFF28A745),
                   fontWeight: FontWeight.bold,
                   height: 1,
@@ -390,7 +390,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
   Widget _buildRentalPeriodCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -512,7 +512,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
   Widget _buildCustomerCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -595,7 +595,7 @@ class _RentalDetailsPageState extends State<RentalDetailsPage> {
   Widget _buildDocumentCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),

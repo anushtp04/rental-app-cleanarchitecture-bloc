@@ -146,7 +146,7 @@ class _LoginPageState extends State<LoginPage> {
                           onFieldSubmitted: (_) => _handleVerifyOtp(),
                           decoration: InputDecoration(
                             labelText: 'OTP',
-                            hintText: 'Enter 6-digit OTP',
+                            hintText: 'Enter 8-digit OTP',
                             prefixIcon: const Icon(Icons.lock_clock_outlined),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -159,7 +159,7 @@ class _LoginPageState extends State<LoginPage> {
                               return 'Please enter the OTP';
                             }
                             if (value.length < 6) {
-                              return 'OTP must be 6 digits';
+                              return 'OTP must be 8 digits';
                             }
                             return null;
                           },

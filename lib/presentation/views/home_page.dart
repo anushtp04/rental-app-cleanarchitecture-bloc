@@ -37,8 +37,8 @@ class _HomePageState extends State<HomePage> {
             SliverAppBar(
               floating: true,
               pinned: true,
-              expandedHeight: 100,
-              toolbarHeight: 64,
+              expandedHeight: 80,
+              toolbarHeight: 56,
               backgroundColor: Colors.grey[50],
               surfaceTintColor: Colors.transparent,
               flexibleSpace: FlexibleSpaceBar(
@@ -73,7 +73,7 @@ class _HomePageState extends State<HomePage> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -171,7 +171,7 @@ class _HomePageState extends State<HomePage> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -200,7 +200,7 @@ class _HomePageState extends State<HomePage> {
                 Text(
                   value,
                   style: const TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
                   ),
@@ -272,7 +272,7 @@ class _HomePageState extends State<HomePage> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(20),

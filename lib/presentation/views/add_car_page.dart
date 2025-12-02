@@ -99,7 +99,7 @@ class _AddCarPageState extends State<AddCarPage> {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
@@ -145,7 +145,7 @@ class _AddCarPageState extends State<AddCarPage> {
               const SizedBox(height: 40),
               SizedBox(
                 width: double.infinity,
-                height: 56,
+                height: 48,
                 child: ElevatedButton(
                   onPressed: _save,
                   style: ElevatedButton.styleFrom(
@@ -305,7 +305,7 @@ class _AddCarPageState extends State<AddCarPage> {
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Colors.black, width: 1.5),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
           validator: (value) {
             if (isRequired && (value == null || value.trim().isEmpty)) {

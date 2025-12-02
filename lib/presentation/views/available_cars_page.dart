@@ -70,12 +70,12 @@ class _AvailableCarsPageState extends State<AvailableCarsPage> {
                 }
 
                 return GridView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 0.75,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
+                    childAspectRatio: 0.8,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
                   ),
                   itemCount: carState.cars.length,
                   itemBuilder: (context, index) {
@@ -116,7 +116,7 @@ class _AvailableCarsPageState extends State<AvailableCarsPage> {
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: SizedBox(
-                height: 120,
+                height: 100,
                 width: double.infinity,
                 child: Stack(
                   children: [
@@ -124,7 +124,7 @@ class _AvailableCarsPageState extends State<AvailableCarsPage> {
                       imagePath: car.imagePath,
                       fit: BoxFit.cover,
                       width: double.infinity,
-                      height: 120,
+                      height: 100,
                     ),
                     Positioned(
                       top: 8,
@@ -189,7 +189,7 @@ class _AvailableCarsPageState extends State<AvailableCarsPage> {
             // Car Info
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
